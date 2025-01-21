@@ -1,0 +1,722 @@
+# ggalign: Bridging the Grammar of Graphics and Biological Multilayered Complexity
+
+# Introduction
+
+# Design Philosophy
+```{r}
+library(ggalign)
+if (!dir.exists("figures")) dir.create("figures")
+```
+
+## Plot composer
+The plot composer relies on the underlying `Patch` object, which is a `ggproto`
+object that behaves like an R6 class. All objects can be extended to align with
+a self-designed `Patch` object.
+
+### Supported Plot Types
+The ggalign package currently supports Patch objects for:
+
+  - `ggplot`: The foundational grammar of graphics system in R.
+  - `Layout`: Build from ggplot2, which provide advanced plot layout
+  visualization in this package.
+  - `ComplexHeatmap`: A comprehensive package for heatmap generation.
+  - `pheatmap`: A lightweight package for simpler heatmaps.
+  - `base plot`: Base graphical plots.
+  - `grid`: Any objects that can be coerced into grid objects.
+
+```{r}
+set.seed(123)
+small_mat <- matrix(rnorm(81), nrow = 9)
+rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
+colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
+
+composer <- align_plots(
+    ggplot(mtcars) +
+        geom_point(aes(mpg, disp)) +
+        ggtitle("ggplot"),
+    ggheatmap(small_mat) +
+        theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+        anno_top(size = 0.2) +
+        align_dendro() +
+        ggtitle("ggalign Layout") +
+        anno_right(size = 0.2) +
+        align_dendro() &
+        theme(plot.margin = margin()),
+    ggwrap(ComplexHeatmap::Heatmap(small_mat), align = "panel") +
+        ggtitle("ComplexHeatmap"),
+    ggwrap(pheatmap::pheatmap(small_mat, silent = TRUE), align = "panel") +
+        ggtitle("pheatmap"),
+    ggwrap(~ plot(1:10), align = "full") + ggtitle("Base plot")
+)
+ggsave("figures/composer.pdf", composer, width = 12, height = 8)
+```
+
+### flexible Composition with Custom Alignment
+The plot composer in `ggalign` provides multiple tools for achieving alignment
+flexibility, depending on the desired level of control over `axes`, `panels`,
+and other graphical elements.
+
+- `free_align`: Use this wrapper to compose plots without aligning specific
+panel axes.
+
+- `free_border`: Align plot panels while leaving panel borders unaligned.
+
+- `free_lab`: Wrap plots with this option to avoid alignment of axis titles,
+enabling independent labeling for each plot. 
+
+- `free_space`: Remove ggplot element size constraints during alignment,
+enabling compact and flexible layouts. 
+
+- `free_vp`: Allows users to customize the viewport when aligning plots,
+providing granular control over plot positioning. 
+
+- `free_guide`: Overrides the default guide (legend) alignment behavior,
+enabling tailored placement and appearance of plot legends.
+
+These tools collectively make `ggalign` highly adaptable, catering to complex
+visualization needs without compromising the integrity of plot elements or their
+relationships. 
+
+## Layout Design
+The core feature of `ggalign` lies in its integration of the grammar of graphics
+principles into advanced visualization, achieved through its object-oriented
+`Layout` system. Two primary `Layout` classes are available: 
+
+ - the `StackLayout` class: Put plots horizontally or vertically.
+ - the `QuadLayout` class: Arranges plots in the four quadrants (top, left,
+ bottom, right) around a main plot. This layout is ideal for designs that
+ require supplementary plots or annotations surrounding a central figure.
+
+Both `Layout` classes support the alignment of observations. Observations refer
+to data points or samples, allowing for consistent alignment of corresponding
+data across multiple plots when using the same axis values. Depending on whether
+you want to align observations across multiple plots within the layout, the
+following variants are available:
+
+For `StackLayout`:
+
+ - `stack_align()`: align the observations along the stack.
+ - `stack_free()`: don't align the observations.
+
+For `QuadLayout`: 
+
+ - `quad_free`/`ggside`: Never align observations.
+ - `quad_alignh`: Align observations in the horizontal direction.
+ - `quad_alignv`: Align observations in the vertical direction.
+ - `quad_alignb`: Align observations in both horizontal and vertical directions. 
+
+```{r}
+stackv_design <- stack_discretev(matrix(rnorm(56), nrow = 7)) +
+    lapply(seq_len(3L), function(i) {
+        ggalign() +
+            ggtitle(sprintf("Plot %s", i)) +
+            theme(panel.background = element_rect(fill = scales::alpha("red", 0.5)))
+    }) +
+    # layout_title("stack_layout(direction = 'v')") +
+    layout_annotation(theme = theme(plot.title = element_text(size = 20)))
+ggsave("figures/stackv_design.pdf", stackv_design,
+    width = 3, height = 7
+)
+stackh_design <- stack_discreteh(matrix(rnorm(56), nrow = 7)) +
+    lapply(seq_len(3L), function(i) {
+        ggalign() +
+            ggtitle(sprintf("Plot %s", i)) +
+            theme(panel.background = element_rect(fill = scales::alpha("red", 0.5)))
+    }) +
+    # layout_title("stack_layout(direction = 'v')") +
+    layout_annotation(theme = theme(plot.title = element_text(size = 20)))
+ggsave("figures/stackh_design.pdf", stackh_design,
+    width = 7, height = 3
+)
+quad_design <- quad_continuous() +
+    lapply(c("top", "left", "bottom", "right"), function(side) {
+        c(
+            list(quad_anno(side, initialize = TRUE)),
+            lapply(seq_len(3L), function(i) {
+                list(
+                    ggfree(),
+                    ggtitle(sprintf("Plot %s", i)),
+                    theme(panel.background = element_rect(fill = scales::alpha("red", 0.5)))
+                )
+            }),
+            list(layout_annotation(theme = theme(plot.background = element_rect(color = "red", linewidth = unit(3, "cm")))))
+        )
+    }) +
+    quad_active() +
+    ggtitle("Main Plot") +
+    theme(panel.background = element_rect(fill = scales::alpha("red", 0.5))) +
+    # layout_title("QuadLayout") +
+    layout_annotation(theme = theme(plot.title = element_text(size = 20)))
+ggsave("figures/quad_design.pdf", quad_design, width = 7, height = 7)
+
+circle_design <- circle_continuous(mpg, radial = coord_radial(inner.radius = 0.1)) +
+    lapply(seq_len(3L), function(i) {
+        ggalign(mapping = aes(cyl, hwy)) +
+            theme(panel.background = element_rect(fill = scales::alpha("red", 0.5))) +
+            theme_no_axes("y")
+    }) +
+    # layout_title("CircleLayout") +
+    layout_annotation(theme = theme(plot.title = element_text(size = 20)))
+ggsave("figures/circle_design.pdf", circle_design, width = 7, height = 7)
+
+
+
+stack_free_design <- stack_freev(mpg) +
+    ggfree(aes(displ, hwy, colour = class)) +
+    geom_point(size = 2) +
+    ggfree(aes(displ, hwy, colour = class)) +
+    geom_point(size = 2) &
+    scale_color_brewer(palette = "Dark2") &
+    theme_bw() &
+    theme(plot.margin = margin())
+ggsave("figures/stack_free_design.pdf", stack_free_design,
+    width = 4, height = 4
+)
+stack_align_design <- stack_alignh(small_mat) +
+    ggalign(data = rowSums) +
+    geom_bar(aes(value, fill = .panel), orientation = "y", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    align_dendro(k = 3L, aes(color = branch)) +
+    scale_color_brewer(palette = "Dark2")
+ggsave("figures/stack_align_design.pdf", stack_align_design,
+    width = 4, height = 4
+)
+
+quad_free_design <- ggside(mpg, aes(displ, hwy, colour = class)) -
+    # set default theme for all plots in the layout
+    plot_theme(theme_bw()) +
+    geom_point(size = 2) +
+    scale_color_brewer(palette = "Dark2") +
+    # add top annotation
+    anno_top(size = 0.3) -
+    # set default theme for the top annotation
+    plot_theme(theme_no_axes("tb")) +
+    # add a plot in the top annotation
+    ggfree() +
+    geom_density(aes(displ, y = after_stat(density), colour = class),
+        position = "stack"
+    ) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    # add right annotation
+    anno_right(size = 0.3) -
+    # set default theme for the right annotation
+    plot_theme(theme_no_axes("lr")) +
+    # add a plot in the right annotation
+    ggfree() +
+    geom_density(aes(x = after_stat(density), hwy, colour = class),
+        position = "stack"
+    ) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5))
+ggsave("figures/quad_free_design.pdf", quad_free_design,
+    width = 8, height = 7
+)
+i2 <- iris
+i2$Species2 <- rep(c("A", "B"), 75)
+quad_free_design2 <- ggside(i2, aes(Sepal.Width, Sepal.Length, color = Species)) -
+    # set default theme for all plots in the layout
+    plot_theme(theme_bw()) +
+    geom_point(size = 2) +
+    scale_color_brewer(palette = "Dark2") +
+    facet_grid(Species ~ Species2) +
+    # add top annotation
+    anno_top(size = 0.3) -
+    # set default theme for the top annotation
+    plot_theme(theme_no_axes("tb")) +
+    # add a plot in the top annotation
+    ggfree() +
+    geom_density(aes(Sepal.Width, y = after_stat(density), colour = Species),
+        position = "stack"
+    ) +
+    scale_color_brewer(palette = "Dark2", guide = "none") -
+    # we can utilize the `-` to set facet for all plots in the annotation
+    facet_grid(cols = vars(Species2)) +
+    # add right annotation
+    anno_right(size = 0.3) -
+    # set default theme for the right annotation
+    plot_theme(theme_no_axes("lr")) +
+    # add a plot in the right annotation
+    ggfree() +
+    geom_density(aes(x = after_stat(density), Sepal.Length, colour = Species),
+        position = "stack"
+    ) +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5)) +
+    scale_color_brewer(palette = "Dark2", guide = "none") -
+    # we can utilize the `-` to set facet for all plots in the annotation
+    facet_grid(rows = vars(Species))
+ggsave("figures/quad_free_design2.pdf", quad_free_design2,
+    width = 8, height = 7
+)
+```
+
+### Layout Customization
+`ggalign` offers a suite of `align_*` functions designed to give you precise
+control over plot layout. These functions enable you to reorder the observations
+or partition the observations into multiple groups.
+
+Currently, there are four key `align_*` functions available for layout customization:
+
+- **`align_group`**: Group and align plots based on categorical factors.
+- **`align_order`**: Reorder layout observations based on statistical weights
+ or allows for manual reordering based on user-defined ordering index.
+- **`align_kmeans`**: Group observations by k-means clustering results.
+- **`align_dendro`**: Align plots according to hierarchical clustering or
+dendrograms.
+
+It is important to note that the `align_*` functions (introduced in the
+following section) are only applicable to axes where observations are aligned.
+For plots that do not require alignment, these functions can be applied to any
+axis.
+
+```{r}
+set.seed(1L)
+align_kmeans_figure <- ggheatmap(small_mat) +
+    theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+    ggtitle("split observations into groups") +
+    anno_top() +
+    align_kmeans(3L)
+align_dendro_figure <- ggheatmap(small_mat) +
+    theme(axis.text.x = element_text(angle = -60, hjust = 0)) +
+    anno_top(size = 0.2) +
+    align_dendro(aes(color = branch), k = 3) +
+    geom_point(aes(color = branch, y = y)) +
+    ggtitle("order and split observations by dendrogram") +
+    anno_right(size = 0.2) +
+    align_dendro(aes(color = branch), k = 3) +
+    geom_point(aes(color = branch, y = y)) &
+    scale_color_brewer(palette = "Dark2", guide = "none") &
+    theme(plot.margin = margin(), plot.background = element_blank())
+ggsave(
+    "figures/layout_customize.pdf",
+    plot = align_plots(
+        align_kmeans_figure, align_dendro_figure,
+        nrow = 1L, guides = "tlbr", widths = c(1, 1.2)
+    ),
+    width = 8, height = 5
+)
+ggsave(
+    "figures/heatmap_design.pdf",
+    plot = align_dendro_figure + anno_top() + ggtitle(NULL),
+    width = 5, height = 5
+)
+```
+
+### Workflow
+The usage of `ggalign` is simple and follows the style of `ggplot2` using the
+`+` operator. The typical workflow includes:
+
+ - Initialize the layout using `quad_layout()` or `stack_layout()`. 
+ - Customize the layout with `align_*()`
+ - Adding plots with `ggalign()` or `ggfree()`, and then layer additional
+ ggplot2 elements such as geoms, stats, or scales.
+
+```{r eval=FALSE} 
+# expample code
+stack_alignh(data) + # initialize a layout
+    align_dendro() + # customize the layout
+    ggalign() + # add a plot
+    geom_bar() + # add ggplot2 layer
+    geom_boxplot() + # add ggplot2 layer
+    scale_fill_brewer(palette = "Set3") + # add ggplot2 scale
+    theme() # add ggplot2 theme
+```
+
+### Advanced Application
+Build on `StackLayout`, another useful `Layout` class is `CrossLayout`, which
+can be used to put different layout ordering index in a single layout. Along
+with this `Layout`, `ggalign` provide `cross_link()` function to reset the
+layout ordering index and add a plot to indicate the transition from the old
+layout ordering index to the new ordering index. One common type of figure is
+the `tanglegram` visualizations, which is a classical way of graphically
+representing correspondence between two labeled phylogenies.
+
+Building on the `QuadLayout` (`quad_alignb()`), we provide the `HeatmapLayout`,
+which can be created with the `ggheatmap()` or `ggoncoplot()` functions. Both
+functions generate a `HeatmapLayout`, but with different default settings.
+`ggheatmap()` creates filled colored cells by default, while `ggoncoplot()`
+generates `oncoPrint` visualizations that display genetic alterations in a
+matrix format.  This function is particularly useful for visualizing complex
+genomic data such as mutations, copy number variations, and other alterations in
+cancer research.
+
+```{r}
+set.seed(123)
+big_mat <- matrix(rnorm(8100), nrow = 90)
+rownames(big_mat) <- paste0("row", seq_len(nrow(big_mat)))
+colnames(big_mat) <- paste0("column", seq_len(ncol(big_mat)))
+cross_layout_design <- stack_crossh(big_mat) +
+    align_kmeans(3L) +
+    align_dendro(aes(color = branch), merge_dendrogram = TRUE) +
+    patch_titles(top = "method = 'complete'") +
+    scale_x_reverse() +
+    theme(plot.patch_title.top = element_text(hjust = 1)) +
+    ggcross() +
+    geom_line(aes(x = .hand, group = .index)) +
+    theme(
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank()
+    ) +
+    align_dendro(aes(color = branch),
+        merge_dendrogram = TRUE,
+        method = "ward.D2"
+    ) +
+    patch_titles(top = "method = 'ward.D2'") +
+    theme(plot.patch_title.top = element_text(hjust = 0)) &
+    theme(plot.margin = margin())
+ggsave(
+    "figures/cross_layout_design.pdf",
+    plot = cross_layout_design,
+    width = 8, height = 5
+)
+# load data from `maftools`
+laml.maf <- system.file("extdata", "tcga_laml.maf.gz", package = "maftools")
+# clinical information containing survival information and histology. This is optional
+laml.clin <- system.file("extdata", "tcga_laml_annot.tsv", package = "maftools")
+laml <- maftools::read.maf(
+    maf = laml.maf,
+    clinicalData = laml.clin,
+    verbose = FALSE
+)
+oncoplot_design <- ggoncoplot(laml, n_top = 10) +
+    theme_no_axes("x") +
+    # add top annotation
+    anno_top(size = 0.2) +
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "sample_summary")
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:(ncol(data) - 1L)])
+    }) +
+    geom_bar(aes(.x, value, fill = .column_names),
+        stat = "identity"
+    ) +
+    guides(fill = "none") +
+    ylab("TMB") +
+    # add right annotation
+    anno_right(size = 0.2) -
+    # remove bottom spaces of the right annotation when aligning
+    scheme_align(free_spaces = "b") +
+    # add the text percent for the alterated samples in the right annotation
+    ggalign(data = function(data) {
+        # Atomic vector will be put in the `value` column of the data frame.
+        ggalign_attr(data, "gene_summary")$AlteredSamples /
+            ggalign_attr(data, "n_samples")
+    }) +
+    geom_text(aes(1, label = scales::label_percent()(value)), hjust = 1) +
+    scale_x_continuous(
+        expand = expansion(),
+        name = NULL, breaks = NULL,
+        limits = c(0, 1)
+    ) +
+    theme(plot.margin = margin()) +
+    # add the bar plot in the right annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "gene_summary")
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:8])
+    }) +
+    geom_bar(aes(value, fill = .column_names),
+        stat = "identity",
+        orientation = "y"
+    ) +
+    guides(fill = "none") +
+    xlab("No. of samples") -
+    # we apply the scale mapping to the top and right annotation: `position = "tr"`
+    # and the main plot: `main = TRUE`
+    with_quad(
+        scale_fill_brewer("Mutations",
+            palette = "Dark2", na.translate = FALSE
+        ),
+        position = "tr",
+        main = TRUE
+    ) +
+    # add bottom annotation
+    anno_bottom(size = 0.2) +
+    # add bar plot in the bottom annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "titv")$fraction.contribution
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:7])
+    }) +
+    geom_bar(aes(y = value, fill = .column_names), stat = "identity") +
+    ylab("Ti/Tv") +
+    scale_fill_brewer("Ti/Tv", palette = "Set2") &
+    theme(plot.margin = margin())
+ggsave(
+    "figures/oncoplot_design.pdf",
+    plot = oncoplot_design,
+    width = 9, height = 7
+)
+
+cross_heatmap_list <- stack_crossh(big_mat, sizes = c(0.1, 1, 0.1)) +
+    # group the observations based on kmeans clustering
+    align_kmeans(3L) +
+    # add a new heatmap
+    ggheatmap() +
+    theme_no_axes() +
+    # initialize the left annotation
+    anno_left(size = 0.2) +
+    # add a dendrogram in the left annotation
+    align_dendro(aes(color = branch), merge_dendrogram = TRUE) +
+    theme_no_axes() +
+    scale_color_brewer(palette = "Dark2") +
+    anno_top() -
+    plot_align(free_spaces = "l") +
+    align_dendro(aes(color = branch), k = 3) +
+    scale_color_brewer(palette = "Set1") +
+    guides(color = "none") +
+    ggtitle("method = 'complete'") +
+    # move to the cross layout
+    stack_active() +
+    # reset the ordering index by original dendrogram, and add a plot to
+    # indicate the transition from the old layout ordering index # to the new
+    # ordering index
+    cross_link(size = 0.5) +
+    # add connection line
+    geom_line(aes(x = hand, group = index)) +
+    # remove x labels and title
+    scale_x_discrete(breaks = NULL, name = NULL) +
+    # add another heatmap
+    ggheatmap() +
+    theme_no_axes() +
+    anno_left() +
+    align_dendro(method = "ward.D2", plot_dendrogram = FALSE) +
+    anno_top() -
+    plot_align(free_spaces = "l") +
+    align_dendro(aes(color = branch), k = 4) +
+    scale_color_brewer(palette = "Set1") +
+    guides(color = "none") +
+    ggtitle("method = 'ward.D2'") +
+    stack_active() +
+    cross_link(size = 0.5) +
+    # add connection line
+    geom_line(aes(x = hand, group = index)) +
+    # remove x labels and title
+    scale_x_discrete(breaks = NULL, name = NULL) +
+    # add another heatmap
+    ggheatmap() +
+    theme_no_axes() +
+    anno_top() -
+    plot_align(free_spaces = "l") +
+    align_dendro(aes(color = branch), k = 2) +
+    scale_color_brewer(palette = "Set1") +
+    guides(color = "none") +
+    ggtitle("method = 'mcquitty'") +
+    # initialize the right annotation
+    anno_right(size = 0.2) +
+    # add a dendrogram in the right annotation
+    align_dendro(
+        aes(color = branch),
+        method = "mcquitty",
+        merge_dendrogram = TRUE
+    ) +
+    scale_color_brewer(palette = "Dark2") +
+    theme_no_axes() &
+    theme(plot.margin = margin())
+ggsave(
+    "figures/cross_heatmap_list.pdf",
+    plot = cross_heatmap_list,
+    width = 9, height = 5
+)
+```
+
+### Plot Options
+Plot options control the behavior of plots within a layout. `ggalign` currently
+provides three plot options, each prefixed with `plot_`:
+
+  - `plot_theme`: Sets the default theme for the plot.
+  - `plot_data`: Transforms the plot data. Many functions in this package
+  require a specific data format to align observations, `plot_data()` helps
+  reformat data frames as needed.
+  - `plot_align`: Defines alignment specifications for plots within the layout.
+
+### Inheritance and Operators
+Similar to ggplot2's layer data inheritance, all plot data can inherit from the
+layout's data. Plot options can be applied either globally to all plots in
+the layout or individually to specific plots. By default, plot options inherit
+properties from parent layout options hierarchically. This hierarchical
+inheritance enables greater flexibility and consistency when applying options
+across multiple plots.
+
+ - To apply a plot option to a single plot, use the `+` operator.
+ - To set a plot option at the layout level, use the `-` operator.
+
+The `+` operator is straightforward and should be used as needed. Additionally,
+`ggalign` provides two operators (`-` and `&`) to reduce code repetition when
+adding ggplot elements (such as geoms, themes, facets, etc.) to multiple or all
+plots in the layout.
+
+### Extension
+One key design principle of `ggalign` is its flexibility and ease of extension.
+To facilitate seamless integration with other specialized objects, `ggalign`
+provides two core generic functions. If the object incorporates the concept of
+observations and requires alignment across multiple plots, the
+`fortify_matrix()` method should be defined, which returns a matrix, otherwise,
+the `fortify_data_frame()` method should be defined, which returns a data frame. 
+
+For example, `ggalign` provides the `fortify_matrix()` method for `MAF` and
+`GISTIC` objects in the `maftools` package, enabling users to directly input
+these objects into `ggoncoplot` to generate oncoplots. 
+
+To introduce a new algorithm for reordering or grouping observations, users can
+create a new `AlignProto` object, which is a `ggproto` object. All `align_*`
+functions are built on this base class. 
+
+To introduce a new plot type, it's easy to utilize the geom system from ggplot2.
+For instance, For instance, the package includes `geom_pie()` for creating
+heatmap pie charts, `geom_subrect()`/`geom_subtile()` for depicting overlapped
+oncoplots (multiple alterations occurring in the same sample and gene), and
+`geom_draw()` for generating oncoplots similar to the `alter_fun` argument in
+the `oncoPrint` function from `ComplexHeatmap`.
+
+```{r}
+set.seed(123)
+pie_heatmap <- ggheatmap(matrix(runif(360L), nrow = 20L), filling = NULL) +
+    geom_pie(aes(angle = value * 360, fill = value))
+ggsave(
+    "figures/pie_heatmap.pdf",
+    plot = pie_heatmap, width = 5, height = 5
+)
+```
+
+# UpSet plot
+```{r}
+set.seed(123)
+lt <- list(
+    a = sample(letters, 5),
+    b = sample(letters, 10),
+    c = sample(letters, 15)
+)
+upset_plot <- ggupset(lt) +
+    scale_fill_manual(values = c("#F0F0F0", "white"), guide = "none") +
+    scale_color_manual(values = c("grey", "black"), guide = "none") +
+    anno_top() +
+    ggalign(data = function(d) ggalign_attr(d, "intersection_sizes")) +
+    ggplot2::geom_bar(aes(y = .data$value), stat = "identity") +
+    ylab("Intersection Sizes") +
+    anno_right() +
+    ggalign(data = function(d) ggalign_attr(d, "set_sizes")) +
+    ggplot2::geom_bar(aes(x = .data$value),
+        stat = "identity",
+        orientation = "y"
+    ) +
+    xlab("Set Sizes")
+ggsave(
+    "figures/upset_plot.pdf",
+    plot = upset_plot, width = 5, height = 5
+)
+```
+
+## stack_layout() add ggheatmap()
+```{r}
+# setup package logo ----------------------------
+library(ggalign)
+if (!dir.exists(logo_dir <- file.path("man/figures"))) {
+    dir.create(logo_dir, recursive = TRUE)
+}
+expr <- read_example("gene_expression.rds")
+mat <- as.matrix(expr[, grep("cell", colnames(expr))])
+base_mean <- rowMeans(mat)
+mat_scaled <- t(apply(mat, 1, scale))
+type <- gsub("s\\d+_", "", colnames(mat))
+heat1 <- ggheatmap(mat_scaled) -
+    scheme_align(free_spaces = "l") +
+    scale_y_continuous(breaks = NULL) +
+    scale_fill_viridis_c(name = "Gene expression", option = "magma") +
+    # add dendrogram for this heatmap
+    anno_top() +
+    align_dendro() +
+    # add a block for the heatmap column
+    ggalign(data = type, size = unit(1, "cm")) +
+    geom_tile(aes(y = 1, fill = factor(value))) +
+    scale_y_continuous(breaks = NULL, name = NULL) +
+    scale_fill_brewer(palette = "Set1", name = "type")
+heat2 <- ggheatmap(base_mean, width = unit(2, "cm")) +
+    scale_y_continuous(breaks = NULL) +
+    scale_x_continuous(name = "base mean", breaks = FALSE) +
+    scale_fill_gradientn(
+        name = "base mean",
+        colours = c("#2600D1FF", "white", "#EE3F3FFF")
+    ) +
+    # set the active context of the heatmap to the top
+    # and set the size of the top stack
+    anno_top(size = unit(4, "cm")) +
+    # add box plot in the heatmap top
+    ggalign() +
+    geom_boxplot(aes(y = value, fill = factor(.extra_panel))) +
+    scale_x_continuous(expand = expansion(), breaks = NULL) +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    theme(axis.title.y = element_blank())
+
+heat3 <- ggheatmap(expr$type, width = unit(2, "cm")) +
+    scale_fill_brewer(palette = "Set3", name = "gene type") +
+    scale_x_continuous(breaks = NULL, name = "gene type") +
+    # add barplot in the top annotation, and remove the spaces in the y-axis
+    anno_top() -
+    scheme_align(free_spaces = "lr") +
+    ggfree() +
+    geom_bar(
+        aes(.extra_panel, fill = factor(value)),
+        position = position_fill()
+    ) +
+    theme_no_axes("x") +
+    scale_y_continuous(expand = expansion()) +
+    scale_fill_brewer(palette = "Set3", name = "gene type", guide = "none") -
+    scheme_theme(plot.margin = margin())
+
+set.seed(1234L)
+logo <- stack_alignh(data = mat_scaled) +
+    stack_active(sizes = c(0.2, 1, 1)) +
+    # group stack rows into 5 groups
+    align_kmeans(centers = 5L) +
+    # add a block plot for each group in the stack
+    ggalign(size = unit(1, "cm"), data = NULL) +
+    geom_tile(aes(x = 1, fill = factor(.panel))) +
+    scale_fill_brewer(palette = "Dark2", name = "Kmeans group") +
+    scale_x_continuous(breaks = NULL, name = NULL) +
+    # add a heatmap plot in the stack
+    heat1 +
+    # add another heatmap in the stack and set the heatmap body width
+    heat2 +
+    # we move into the stack layout
+    stack_active() +
+    # add a point plot
+    ggalign(data = expr$length, size = unit(2, "cm")) +
+    geom_point(aes(x = value)) +
+    labs(x = "length") +
+    theme(
+        panel.border = element_rect(fill = NA),
+        axis.text.x = element_text(angle = -60, hjust = 0)
+    ) +
+    # add another heatmap and set the heatmap body width
+    heat3 &
+    theme(
+        plot.background = element_blank(), 
+        panel.background = element_blank(),
+        legend.background = element_blank()
+    )
+ggsave("figures/logo.pdf", plot = logo, width = 10, height = 9)
+```
+ 
+# Case I
+
+# Case II
+
+# Case III
+
+# Case IV
+
+# Case V
+
+# Conclusion
+The ggalign package provides a robust and flexible framework for creating
+complex, aligned, and layered biological visualizations. By extending the
+grammar of graphics and integrating various layout configurations and advanced
+functions, users can generate highly informative and customizable visual plots,
+suitable for diverse applications, particularly in the analysis of complex
+biological data. 
+
+<!-- gghalves/ggdensity/ggHoriPlot/ggpol/ggstar/directlabels/ggrain/ggmuller/piecepackr/ggfoundry -->

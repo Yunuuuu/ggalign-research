@@ -1,0 +1,10 @@
+.Rproj.user
+_book/
+.Rhistory
+.radian_history
+.quarto
+Scratch.RConsole
+munging/
+rawdata/
+figures/
+ggalign-research.Rproj
