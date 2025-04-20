@@ -3,10 +3,10 @@
 # Introduction
 
 ```{r Figure_S3_code_image}
-stack_alignh(data) +                    # initialize a layout
-    align_hclust() +                    # reorder the data based on hierarchical clustering
-    ggalign() +                         # initialize a plot
-    geom_bar() +                        # add ggplot2 layer
+stack_alignh(data) + # initialize a layout
+    align_hclust() + # reorder the data based on hierarchical clustering
+    ggalign() + # initialize a plot
+    geom_bar() + # add ggplot2 layer
     scale_fill_brewer(palette = "Set3") # add ggplot2 scale
 ```
 
@@ -318,7 +318,7 @@ The usage of `ggalign` is simple and follows the style of `ggplot2` using the
  - Adding plots with `ggalign()` or `ggfree()`, and then layer additional
  ggplot2 elements such as geoms, stats, or scales.
 
-```{r eval=FALSE} 
+```{r eval=FALSE}
 # expample code
 stack_alignh(data) + # initialize a layout
     align_dendro() + # customize the layout
@@ -346,190 +346,6 @@ generates `oncoPrint` visualizations that display genetic alterations in a
 matrix format.  This function is particularly useful for visualizing complex
 genomic data such as mutations, copy number variations, and other alterations in
 cancer research.
-
-```{r}
-set.seed(123)
-big_mat <- matrix(rnorm(8100), nrow = 90)
-rownames(big_mat) <- paste0("row", seq_len(nrow(big_mat)))
-colnames(big_mat) <- paste0("column", seq_len(ncol(big_mat)))
-cross_layout_design <- stack_crossh(big_mat) +
-    align_kmeans(3L) +
-    align_dendro(aes(color = branch), merge_dendrogram = TRUE) +
-    patch_titles(top = "method = 'complete'") +
-    scale_x_reverse() +
-    theme(plot.patch_title.top = element_text(hjust = 1)) +
-    ggcross() +
-    geom_line(aes(x = .hand, group = .index)) +
-    theme(
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        axis.ticks.x = element_blank()
-    ) +
-    align_dendro(aes(color = branch),
-        merge_dendrogram = TRUE,
-        method = "ward.D2"
-    ) +
-    patch_titles(top = "method = 'ward.D2'") +
-    theme(plot.patch_title.top = element_text(hjust = 0)) &
-    theme(plot.margin = margin())
-ggsave(
-    "figures/cross_layout_design.pdf",
-    plot = cross_layout_design,
-    width = 8, height = 5
-)
-# load data from `maftools`
-laml.maf <- system.file("extdata", "tcga_laml.maf.gz", package = "maftools")
-# clinical information containing survival information and histology. This is optional
-laml.clin <- system.file("extdata", "tcga_laml_annot.tsv", package = "maftools")
-laml <- maftools::read.maf(
-    maf = laml.maf,
-    clinicalData = laml.clin,
-    verbose = FALSE
-)
-oncoplot_design <- ggoncoplot(laml, n_top = 10) +
-    theme_no_axes("x") +
-    # add top annotation
-    anno_top(size = 0.2) +
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "sample_summary")
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:(ncol(data) - 1L)])
-    }) +
-    geom_bar(aes(.x, value, fill = .column_names),
-        stat = "identity"
-    ) +
-    guides(fill = "none") +
-    ylab("TMB") +
-    # add right annotation
-    anno_right(size = 0.2) -
-    # remove bottom spaces of the right annotation when aligning
-    scheme_align(free_spaces = "b") +
-    # add the text percent for the alterated samples in the right annotation
-    ggalign(data = function(data) {
-        # Atomic vector will be put in the `value` column of the data frame.
-        ggalign_attr(data, "gene_summary")$AlteredSamples /
-            ggalign_attr(data, "n_samples")
-    }) +
-    geom_text(aes(1, label = scales::label_percent()(value)), hjust = 1) +
-    scale_x_continuous(
-        expand = expansion(),
-        name = NULL, breaks = NULL,
-        limits = c(0, 1)
-    ) +
-    theme(plot.margin = margin()) +
-    # add the bar plot in the right annotation
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "gene_summary")
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:8])
-    }) +
-    geom_bar(aes(value, fill = .column_names),
-        stat = "identity",
-        orientation = "y"
-    ) +
-    guides(fill = "none") +
-    xlab("No. of samples") -
-    # we apply the scale mapping to the top and right annotation: `position = "tr"`
-    # and the main plot: `main = TRUE`
-    with_quad(
-        scale_fill_brewer("Mutations",
-            palette = "Dark2", na.translate = FALSE
-        ),
-        position = "tr",
-        main = TRUE
-    ) +
-    # add bottom annotation
-    anno_bottom(size = 0.2) +
-    # add bar plot in the bottom annotation
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "titv")$fraction.contribution
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:7])
-    }) +
-    geom_bar(aes(y = value, fill = .column_names), stat = "identity") +
-    ylab("Ti/Tv") +
-    scale_fill_brewer("Ti/Tv", palette = "Set2") &
-    theme(plot.margin = margin())
-ggsave(
-    "figures/oncoplot_design.pdf",
-    plot = oncoplot_design,
-    width = 9, height = 7
-)
-
-cross_heatmap_list <- stack_crossh(big_mat, sizes = c(0.1, 1, 0.1)) +
-    # group the observations based on kmeans clustering
-    align_kmeans(3L) +
-    # add a new heatmap
-    ggheatmap() +
-    theme_no_axes() +
-    # initialize the left annotation
-    anno_left(size = 0.2) +
-    # add a dendrogram in the left annotation
-    align_dendro(aes(color = branch), merge_dendrogram = TRUE) +
-    theme_no_axes() +
-    scale_color_brewer(palette = "Dark2") +
-    anno_top() -
-    plot_align(free_spaces = "l") +
-    align_dendro(aes(color = branch), k = 3) +
-    scale_color_brewer(palette = "Set1") +
-    guides(color = "none") +
-    ggtitle("method = 'complete'") +
-    # move to the cross layout
-    stack_active() +
-    # reset the ordering index by original dendrogram, and add a plot to
-    # indicate the transition from the old layout ordering index # to the new
-    # ordering index
-    cross_link(size = 0.5) +
-    # add connection line
-    geom_line(aes(x = hand, group = index)) +
-    # remove x labels and title
-    scale_x_discrete(breaks = NULL, name = NULL) +
-    # add another heatmap
-    ggheatmap() +
-    theme_no_axes() +
-    anno_left() +
-    align_dendro(method = "ward.D2", plot_dendrogram = FALSE) +
-    anno_top() -
-    plot_align(free_spaces = "l") +
-    align_dendro(aes(color = branch), k = 4) +
-    scale_color_brewer(palette = "Set1") +
-    guides(color = "none") +
-    ggtitle("method = 'ward.D2'") +
-    stack_active() +
-    cross_link(size = 0.5) +
-    # add connection line
-    geom_line(aes(x = hand, group = index)) +
-    # remove x labels and title
-    scale_x_discrete(breaks = NULL, name = NULL) +
-    # add another heatmap
-    ggheatmap() +
-    theme_no_axes() +
-    anno_top() -
-    plot_align(free_spaces = "l") +
-    align_dendro(aes(color = branch), k = 2) +
-    scale_color_brewer(palette = "Set1") +
-    guides(color = "none") +
-    ggtitle("method = 'mcquitty'") +
-    # initialize the right annotation
-    anno_right(size = 0.2) +
-    # add a dendrogram in the right annotation
-    align_dendro(
-        aes(color = branch),
-        method = "mcquitty",
-        merge_dendrogram = TRUE
-    ) +
-    scale_color_brewer(palette = "Dark2") +
-    theme_no_axes() &
-    theme(plot.margin = margin())
-ggsave(
-    "figures/cross_heatmap_list.pdf",
-    plot = cross_heatmap_list,
-    width = 9, height = 5
-)
-```
 
 ### Plot Options
 Plot options control the behavior of plots within a layout. `ggalign` currently
@@ -702,7 +518,7 @@ logo <- stack_alignh(data = mat_scaled) +
     # add another heatmap and set the heatmap body width
     heat3 &
     theme(
-        plot.background = element_blank(), 
+        plot.background = element_blank(),
         panel.background = element_blank(),
         legend.background = element_blank()
     )
