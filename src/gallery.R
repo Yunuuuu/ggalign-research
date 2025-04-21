@@ -154,7 +154,7 @@ data <- readxl::read_xlsx(
     "rawdata/circular/Supplementary tables.xlsx",
     skip = 1L
 )
-set.seed(5L)
+set.seed(3L)
 selected <- sample(2:18, 5)
 logFC <- data[selected, c(1, which(as.character(data[1, ]) == "logFC"))]
 adj.P <- data[selected, c(1, which(as.character(data[1, ]) == "adj.P"))]
@@ -178,7 +178,13 @@ circle_splitted <- circle_discrete(logFC,
 ) +
     align_dendro(aes(color = branch), k = 5L, size = 1) +
     theme_no_axes("y") +
-    scale_color_brewer(palette = "Dark2") +
+    scale_color_brewer(
+        palette = "Dark2",
+        guide = guide_legend(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
+    ) +
 
     # heatmap plot
     ggalign(mapping = aes(y = .column_names, fill = value)) +
@@ -187,9 +193,15 @@ circle_splitted <- circle_discrete(logFC,
         dd$pvalue <- adj.P[cbind(dd$.row_index, dd$.column_index)]
         dplyr::filter(dd, pvalue < 0.05)
     }) +
-    scale_fill_gradient2(
-        low = "blue", high = "red",
-        name = "logFC"
+    scale_fill_viridis_c(
+        name = "logFC",
+        option = "plasma",
+        limits = c(-1, 1),
+        breaks = c(-0.5, 0, 0.5),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
     ) +
     theme(
         axis.text.r = element_text(family = "Helvetica", size = 22),
@@ -725,6 +737,7 @@ annotate_observations <- stack_crossh(expr1) -
     theme_no_axes("x") +
     scale_x_reverse() +
     ggheatmap(expr1) +
+    ggtitle("Group 1") +
     scale_fill_viridis_c(
         name = "log2(expr + 1)",
         option = "plasma",
@@ -777,6 +790,7 @@ annotate_observations <- stack_crossh(expr1) -
 
     # add a heatmap
     ggheatmap() +
+    ggtitle("Group 1") +
     scale_fill_viridis_c(
         name = "log2(expr + 1)",
         option = "plasma",

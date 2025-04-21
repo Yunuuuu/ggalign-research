@@ -1,4 +1,4 @@
-# Please use ggplot2 > 3.5.1 (or development version 3.5.1.9000)
+# Please use ggplot2 > 3.5.2 (or development version 3.5.2.9000)
 library(ggalign)
 library(magrittr)
 
