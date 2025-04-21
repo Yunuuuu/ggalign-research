@@ -1,6 +1,8 @@
 # pak::pak("Yunuuuu/biotidy"): we use biotidy to create data
 
 library(ggalign)
+# Prepare gallery figures to showcase the general style of each feature.
+# Each figure uses minimal data—only enough to illustrate the design.
 
 # https://academic.oup.com/mbe/article/38/9/4039/6294410
 alltax <- read.csv("rawdata/circular/all_stain_taxonomy.csv")
