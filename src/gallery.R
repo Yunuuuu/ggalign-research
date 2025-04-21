@@ -149,8 +149,10 @@ data <- readxl::read_xlsx(
     "rawdata/circular/Supplementary tables.xlsx",
     skip = 1L
 )
-logFC <- data[2:18, c(1, which(as.character(data[1, ]) == "logFC"))]
-adj.P <- data[2:18, c(1, which(as.character(data[1, ]) == "adj.P"))]
+set.seed(5L)
+selected <- sample(2:18, 5)
+logFC <- data[selected, c(1, which(as.character(data[1, ]) == "logFC"))]
+adj.P <- data[selected, c(1, which(as.character(data[1, ]) == "adj.P"))]
 names(adj.P) <- names(logFC)
 
 logFC <- dplyr::mutate(logFC, dplyr::across(!pathway, as.numeric)) |>
@@ -161,7 +163,6 @@ adj.P <- dplyr::mutate(adj.P, dplyr::across(!pathway, as.numeric)) |>
     tibble::column_to_rownames(var = "pathway") |>
     as.matrix() |>
     t()
-
 circle_splitted <- circle_discrete(logFC,
     radial = coord_radial(start = pi / 2, end = pi * 2, expand = FALSE),
     theme = theme(
@@ -170,7 +171,7 @@ circle_splitted <- circle_discrete(logFC,
     ),
     sector_spacing = 5 * pi / 180
 ) +
-    align_dendro(aes(color = branch), k = 5L, size = 0.3) +
+    align_dendro(aes(color = branch), k = 5L, size = 1) +
     theme_no_axes("y") +
     scale_color_brewer(palette = "Dark2") +
 
@@ -186,7 +187,7 @@ circle_splitted <- circle_discrete(logFC,
         name = "logFC"
     ) +
     theme(
-        axis.text.r = element_text(family = "Helvetica", size = 12),
+        axis.text.r = element_text(family = "Helvetica", size = 22),
         axis.text.theta = element_text(family = "Helvetica", size = 15)
     ) +
     guides(
@@ -556,6 +557,67 @@ ggsave(
     width = 9, height = 6
 )
 
+# upset ---------------------------------------------------------
+upset_data <- dplyr::filter(BGCsda, Count > 0)
+set.seed(1L)
+sampled <- sample(unique(upset_data$Strain), 50)
+upset_data <- split(upset_data$Strain, upset_data$BGCs)
+upset_data <- lapply(upset_data, intersect, sampled)
+upset_data$modular.PKS.NRPS.hybrid <- NULL
+upset <- ggupset(tune(upset_data),
+    point = list(
+        data = function(d) {
+            dplyr::mutate(d,
+                point_group = dplyr::case_when(
+                    !point_group ~ NA_character_,
+                    .default = .discrete_y
+                ),
+                point_group = factor(point_group, levels(.discrete_y))
+            )
+        },
+        size = 3
+    )
+) +
+    scale_fill_manual(values = c("#F0F0F0", "white"), guide = "none") +
+    scale_color_brewer(
+        palette = "Dark2", guide = "none",
+        na.translate = TRUE, na.value = "grey"
+    ) +
+    theme(axis.text.y = element_text(size = 16)) +
+    # scale_color_manual(values = c("grey", "black"), guide = "none") +
+
+    # add top annotation
+    anno_top(size = 0.5) +
+    ggalign(data = function(d) ggalign_attr(d, "intersection_sizes")) +
+    geom_bar(aes(y = .data$value), stat = "identity") +
+    ylab("Intersection\nSizes") +
+    theme(
+        axis.title.y = element_text(size = 16, face = "bold"),
+        axis.text.y = element_text(size = 16)
+    ) +
+
+    # add right annotation
+    anno_right(size = 0.5) +
+    ggalign(data = function(d) ggalign_attr(d, "set_sizes")) +
+    geom_bar(aes(x = .data$value, fill = .discrete_y),
+        stat = "identity",
+        orientation = "y"
+    ) +
+    scale_fill_brewer(
+        palette = "Dark2", guide = "none",
+        na.translate = TRUE, na.value = "grey"
+    ) +
+    xlab("Set Sizes") +
+    scale_x_continuous(breaks = scales::pretty_breaks(3)) +
+    theme(
+        axis.title.x = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(size = 16)
+    ) &
+    theme(
+        plot.background = element_blank(),
+        plot.margin = margin()
+    )
+ggsave("figures/gallery/upset.pdf", plot = upset, width = 8, height = 4)
 
 # Link observations -------------------------------------
 # Create some sample data
@@ -569,33 +631,59 @@ proteomics[c(1:3, 5, 8:9), ] <- transcriptomics[c(1:3, 5, 8, 4), ]
 # tanglegram
 link_observations <- stack_crossh() +
     # align_kmeans(data = cbind(transcriptomics, proteomics), centers = 3L) +
+
+    # add heatmap ---------------------------
     ggheatmap(transcriptomics) +
     ggtitle("Transcriptomics") +
     theme_no_axes("x") +
-    theme(plot.margin = margin()) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+
+    ## add left annotations -----------------
     anno_left(size = 0.25) +
     align_dendro(aes(color = branch), merge_dendrogram = TRUE, k = 3L) +
+    theme_no_axes("x") +
+
+    # add Links -----------------------------
     stack_active() +
-    cross_link(link_line(), size = 0.5) +
-    # ggcross(
-    #     aes(x = .hand, group = .index, color = .panel),
-    #     size = 0.2
-    # ) +
-    # geom_line(aes()) +
-    # theme_no_axes("x") +
-    # no_expansion("x") +
+    cross_link(
+        link_line(.element = element_line(
+            colour = rep(RColorBrewer::brewer.pal(3, "Dark2"), c(4, 3, 2))[
+                order(c(7, 4, 6, 9, 8, 3, 2, 1, 5))
+            ]
+        )),
+        size = 0.5
+    ) +
     theme(plot.margin = margin()) +
+
+    # add another heatmap -------------------
     ggheatmap(proteomics) +
     ggtitle("Proteomics") +
     scale_y_continuous(position = "right") +
     theme_no_axes("x") +
-    theme(plot.margin = margin()) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+
+    ## add right annotations ----------------
     anno_right(size = 0.25) +
-    align_dendro(aes(color = branch), merge_dendrogram = TRUE, k = 3L) &
+    align_dendro(aes(color = branch), merge_dendrogram = TRUE, k = 3L) +
+    theme_no_axes("x") &
+
+    # set scales
     scale_fill_viridis_c(
         name = "log2(expr + 1)",
         option = "plasma",
-        breaks = scales::breaks_pretty(3L)
+        breaks = scales::breaks_pretty(3L),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
     ) &
     scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave(
@@ -611,3 +699,102 @@ expr1 <- log1p(SummarizedExperiment::assay(biotidy::mockSE(9, 9)))
 
 set.seed(2)
 expr2 <- log1p(SummarizedExperiment::assay(biotidy::mockSE(9, 9)))
+
+diff_genes <- dplyr::inner_join(
+    fortify_data_frame(expr1),
+    fortify_data_frame(expr2),
+    by = c(".row_names", ".column_names")
+) |>
+    dplyr::select(.row_names, .column_names, x = value.x, y = value.y) |>
+    dplyr::arrange(.row_names) |>
+    dplyr::summarise(
+        pvalue = t.test(x, y, paired = TRUE)$p.value,
+        .by = .row_names
+    ) |>
+    dplyr::filter(pvalue < 0.05) |>
+    dplyr::pull(.row_names)
+
+annotate_observations <- stack_crossh(expr1) -
+    scheme_theme(plot.margin = margin()) +
+    align_dendro(aes(color = branch), k = 3L, size = 0.25) +
+    theme_no_axes("x") +
+    scale_x_reverse() +
+    ggheatmap(expr1) +
+    scale_fill_viridis_c(
+        name = "log2(expr + 1)",
+        option = "plasma",
+        breaks = scales::breaks_pretty(3L),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
+    ) +
+    theme_no_axes("x") +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+    stack_active() +
+
+    # initialize the layout data and add mark plot
+    cross_mark(
+        mark_tetragon(!!!lapply(diff_genes, function(x) x ~ x),
+            .reorder = "hand1",
+            .element = element_polygon(
+                fill = rep(RColorBrewer::brewer.pal(6, "Dark2"), each = 2L)
+            )
+        ),
+        data = expr2,
+        inherit_panel = TRUE
+    ) +
+    scheme_data(function(d) {
+        left <- fortify_data_frame(expr1) |>
+            dplyr::mutate(.hand = "left")
+        right <- fortify_data_frame(expr2) |>
+            dplyr::mutate(.hand = "right")
+        dplyr::inner_join(d,
+            dplyr::bind_rows(left, right),
+            by = c(.names = ".row_names", ".hand")
+        )
+    }) +
+    geom_boxplot(aes(.hand, value, fill = .hand),
+        outlier.size = 0.2,
+        linewidth = 0.1
+    ) +
+    scale_fill_brewer(palette = "Set1", guide = "none") +
+    theme_no_axes("xy") +
+    theme(
+        plot.margin = margin(30, 20, 30, 20),
+        strip.background = element_blank(),
+        strip.text = element_blank()
+    ) +
+
+    # add a heatmap
+    ggheatmap() +
+    scale_fill_viridis_c(
+        name = "log2(expr + 1)",
+        option = "plasma",
+        breaks = scales::breaks_pretty(3L),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
+    ) +
+    scale_y_continuous(position = "right") +
+    theme_no_axes("x") +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+
+    stack_active() +
+    align_dendro(aes(color = branch), size = 0.25) +
+    theme_no_axes("x") &
+    scale_color_brewer(palette = "Dark2", guide = "none")
+ggsave(
+    "figures/gallery/annotate_observations.pdf",
+    plot = annotate_observations, family = "Helvetica",
+    width = 9, height = 6
+)
