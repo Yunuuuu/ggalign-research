@@ -193,9 +193,10 @@ circle_splitted <- circle_discrete(logFC,
         dd$pvalue <- adj.P[cbind(dd$.row_index, dd$.column_index)]
         dplyr::filter(dd, pvalue < 0.05)
     }) +
-    scale_fill_viridis_c(
+    scale_fill_gradient2(
+        low = "blue", high = "red",
         name = "logFC",
-        option = "plasma",
+        # option = "plasma",
         limits = c(-1, 1),
         breaks = c(-0.5, 0, 0.5),
         guide = guide_colorbar(theme = theme(
@@ -630,10 +631,7 @@ upset <- ggupset(tune(upset_data),
         axis.title.x = element_text(size = 16, face = "bold"),
         axis.text.x = element_text(size = 16)
     ) &
-    theme(
-        plot.background = element_blank(),
-        plot.margin = margin()
-    )
+    theme(plot.background = element_blank())
 ggsave("figures/gallery/upset.pdf", plot = upset, width = 8, height = 4)
 
 # Link observations -------------------------------------
@@ -790,7 +788,7 @@ annotate_observations <- stack_crossh(expr1) -
 
     # add a heatmap
     ggheatmap() +
-    ggtitle("Group 1") +
+    ggtitle("Group 2") +
     scale_fill_viridis_c(
         name = "log2(expr + 1)",
         option = "plasma",
