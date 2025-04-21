@@ -74,6 +74,9 @@ circle <- circle_discrete(trda,
             xend = data$.x[match(Sensitive, data$.names)]
         )
     }) +
+    # Currently, we use `curvelink` from ggtree, but we'll provide a native
+    # implementation of links for CircleLayout once
+    # https://github.com/tidyverse/ggplot2/pull/6421 is merged into ggplot2.
     ggtree:::geom_curvelink(
         mapping = aes(x, 1, xend = xend, yend = 1, color = Interaction),
         outward = FALSE, key_glyph = draw_key_path,
