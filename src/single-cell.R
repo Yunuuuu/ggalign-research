@@ -55,7 +55,18 @@ guide_axis_trunc <- function(lower = NULL, upper = NULL) {
     )
 }
 
-p1 <- ggheatmap(num, filling = FALSE) +
+p1 <- ggheatmap(num, filling = FALSE) -
+    # set default theme
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")
+    ) +
     # main plot
     scheme_data(function(data) {
         data$average <- ave[cbind(data$.row_index, data$.column_index)]
@@ -68,11 +79,15 @@ p1 <- ggheatmap(num, filling = FALSE) +
     theme_bw() +
     theme(
         axis.text.x = element_text(angle = -60, hjust = 0),
-        axis.text.y = element_text(face = "bold", family = "serif"),
+        axis.text.y = element_text(size = 10),
         strip.text.y.right = element_blank(),
         plot.margin = margin(),
         strip.background = element_rect(colour = NA),
-        strip.text = element_text(face = "bold", family = "serif")
+        strip.text = element_text(face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
     ) +
     ggh4x::facet_grid2(
         strip = ggh4x::strip_themed(
@@ -195,7 +210,7 @@ p1 <- ggheatmap(num, filling = FALSE) +
     theme_no_axes() +
     theme(
         plot.margin = margin(l = 0.15, r = 0.1, unit = "npc"),
-        # strip.text = element_text(face = "bold", family = "serif"),
+        # strip.text = element_text(face = "bold"),
         strip.text = element_blank(),
         strip.background = element_blank()
     ) +
@@ -231,17 +246,16 @@ p1 <- ggheatmap(num, filling = FALSE) +
     # ) +
     ggsci::scale_fill_d3(palette = "category20", guide = "none") +
     # scale_fill_brewer(palette = "Set3", guide = "none") +
-    scale_y_continuous(position = "right") +
+    scale_y_continuous(position = "right", breaks = scales::pretty_breaks(2)) +
+    # guides(x = legendry::primitive_labels(n.dodge = 2)) +
     xlab(NULL) +
     ylab("Proportion") +
     # theme_no_axes("y", title = FALSE) +
     theme(
         plot.margin = margin(l = 0.08, unit = "npc"),
-        axis.text.x = element_text(angle = -60, hjust = 0),
+        axis.text.x = element_text(angle = -60, hjust = 0, size = 12),
         strip.clip = "off",
-        strip.text = element_text(
-            size = 12, face = "bold", family = "serif"
-        ),
+        strip.text = element_text(size = 10, face = "bold"),
         # strip.text.y.right = element_blank(),
         strip.background = element_rect(color = NA)
     ) +
@@ -259,9 +273,8 @@ p1 <- ggheatmap(num, filling = FALSE) +
                 x
             }
         )
-    ) &
-    theme(
-        text = element_text(family = "serif"),
-        plot.title = element_text(face = "bold")
     )
-ggsave("figures/sce/p1.pdf", plot = p1, width = 12, height = 8)
+ggsave("figures/sce/p1.pdf",
+    plot = p1, width = 12, height = 8,
+    family = "Helvetica"
+)

@@ -1,5 +1,4 @@
 # pak::pak("Yunuuuu/biotidy"): we use biotidy to create data
-
 library(ggalign)
 # Prepare gallery figures to showcase the general style of each feature.
 # Each figure uses minimal data—only enough to illustrate the design.
@@ -267,9 +266,6 @@ ggsave("figures/gallery/side_plot.pdf",
 
 # heatmap -----------------------------------------------
 set.seed(123)
-# small_mat <- matrix(rnorm(81), nrow = 9)
-# rownames(small_mat) <- paste0("row", seq_len(nrow(small_mat)))
-# colnames(small_mat) <- paste0("column", seq_len(ncol(small_mat)))
 small_mat <- log1p(SummarizedExperiment::assay(biotidy::mockSE(9, 9)))
 heatmap <- ggheatmap(small_mat) +
     scale_fill_viridis_c(

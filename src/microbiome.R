@@ -1,6 +1,8 @@
 library(ggalign)
 library(mia)
 if (!dir.exists("figures/microbiome")) dir.create("figures/microbiome")
+# pak::pak("Yunuuuu/ggalign")
+# pak::pak("tidyverse/ggplot2")
 
 phylum <- data.table::fread("rawdata/bacteria.sample.relabund.phylum.txt")
 metadata <- data.table::fread("rawdata/sample_metadata.txt")
@@ -38,7 +40,14 @@ genus_tree <- mia::addDominant(
 metadata <- metadata[subset]
 
 # p1
-p1 <- stack_alignv(phylum) +
+p1 <- stack_alignv(phylum) -
+    scheme_theme(
+        plot.margin = margin(),
+        axis.title.y = element_text(size = 16, face = "bold"),
+        axis.text.y = element_text(size = 16),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold")
+    ) +
     align_group(metadata$project) +
 
     # a new dendrogram
@@ -47,8 +56,11 @@ p1 <- stack_alignv(phylum) +
         merge_dendrogram = TRUE
     ) +
     scale_color_brewer(palette = "Dark2", name = "Project") +
-    theme(plot.margin = margin()) +
-    scale_y_continuous(expand = expansion()) +
+
+    scale_y_continuous(
+        expand = expansion(),
+        breaks = scales::pretty_breaks(2L)
+    ) +
 
     # add bar plot
     ggalign() +
@@ -60,7 +72,6 @@ p1 <- stack_alignv(phylum) +
         expand = expansion(), breaks = NULL,
         name = "Relative abundance"
     ) +
-    theme(plot.margin = margin()) +
 
     # mark observations
     ggmark(
@@ -76,22 +87,35 @@ p1 <- stack_alignv(phylum) +
     geom_boxplot(aes(fill = .column_names), outlier.size = 0.2) +
     scale_fill_brewer(palette = "Set3", name = "Phylum", guide = "none") +
     facet_wrap(vars(), strip.position = "top") +
+    scale_y_continuous(
+        expand = expansion(),
+        breaks = scales::pretty_breaks(3L)
+    ) +
     theme(plot.margin = margin(t = 0.1, r = 0.05, unit = "npc")) +
     theme_no_axes("x") +
-    ylab("Relative abundance") +
+    ylab("Relative\nabundance") +
     theme(
         strip.background = element_blank(),
         strip.text = element_blank()
     )
 ggsave("figures/microbiome/p1.pdf",
-    plot = p1,
-    width = 8, height = 7
+    plot = p1, width = 8, height = 7,
+    family = "Helvetica"
 )
 
 obs_phylum <- t(phylum)
 all(metadata$V1 == colnames(obs_phylum))
 p2 <- stack_crossv(obs_phylum) -
-    scheme_theme(theme_bw(), theme(plot.margin = margin())) +
+    scheme_theme(
+        theme_bw(),
+        theme(
+            plot.margin = margin(),
+            axis.title.y = element_text(size = 16, face = "bold"),
+            axis.text.y = element_text(size = 16, colour = "black"),
+            legend.text = element_text(size = 16),
+            legend.title = element_text(size = 16, face = "bold")
+        )
+    ) +
     purrr::imap(
         split(seq_len(nrow(metadata)), metadata$project),
         function(index, project) {
@@ -104,7 +128,11 @@ p2 <- stack_crossv(obs_phylum) -
                     ggbeeswarm::geom_beeswarm(size = 0.1) +
                     scale_fill_brewer(palette = "Set3", name = "Phylum") +
                     # ggtitle(project) +
-                    scale_y_continuous(name = project),
+                    scale_y_continuous(
+                        name = project,
+                        limits = c(0, 1),
+                        breaks = c(0, 1)
+                    ),
                 align_order(~ rowMeans(.x[, index])),
                 if (project != "STAD") {
                     ggcross(
@@ -126,8 +154,8 @@ p2 <- stack_crossv(obs_phylum) -
     )
 
 ggsave("figures/microbiome/p2.pdf",
-    plot = p2,
-    width = 7, height = 7
+    plot = p2, width = 7, height = 7,
+    family = "Helvetica"
 )
 
 # genus - PCoA -----------------------------------------
@@ -147,7 +175,17 @@ names(pcoa_data) <- c("PCoA 1", "PCoA 2")
 p3 <- ggside(
     cbind(metadata, pcoa_data),
     aes(.data[["PCoA 1"]], .data[["PCoA 2"]])
-) +
+) -
+    # set default theme
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold")
+    ) +
     geom_point(aes(color = project), alpha = 0.5) +
     scale_color_brewer(palette = "Dark2", guide = "none") +
     ggforce::geom_mark_ellipse(aes(color = project), alpha = 0.5) +
@@ -157,17 +195,21 @@ p3 <- ggside(
         color = ""
     ) +
     coord_cartesian(clip = "off") +
+
     # top annotation
     anno_top(size = 0.2, free_guides = NULL) -
     scheme_align(guides = "r", free_spaces = "r") +
     ## add density plot
     ggfree() +
     geom_density(aes(.data[["PCoA 1"]], fill = project), alpha = 0.5) +
-    ggfree(waiver(), aes(.data[["PCoA 1"]], project)) +
+    theme(legend.position = c(1, 0), legend.justification = c(0, 0.5)) +
+
     ## add box plot
+    ggfree(waiver(), aes(.data[["PCoA 1"]], project)) +
     geom_boxplot(aes(fill = project), alpha = 0.5) -
     theme_no_axes() +
     guides(fill = "none") +
+
     # right annotation
     anno_right(size = 0.2) +
     ## add box plot
@@ -180,7 +222,8 @@ p3 <- ggside(
     scale_fill_brewer(palette = "Dark2", name = NULL)
 ggsave("figures/microbiome/p3.pdf",
     plot = p3,
-    width = 7, height = 7
+    width = 7, height = 7,
+    family = "Helvetica"
 )
 
 # P4 --------------------------------------------------------
@@ -188,7 +231,17 @@ ggsave("figures/microbiome/p3.pdf",
 groups <- split(seq_len(nrow(metadata)), metadata$project)
 labels <- rownames(phylum)
 # groups <- groups[c("COAD", "READ", "ESCA", "STAD", "HNSC")]
-p4 <- stack_alignh(t(phylum)) +
+p4 <- stack_alignh(t(phylum)) -
+    # set default theme
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold")
+    ) +
     align_dendro(aes(color = branch), size = 0.1, k = 3L) +
     scale_x_reverse() +
     scale_color_brewer(palette = "Dark2") +
@@ -269,21 +322,36 @@ p4 <- stack_alignh(t(phylum)) +
     scale_color_brewer(palette = "Dark2")
 ggsave("figures/microbiome/p4.pdf",
     plot = p4,
-    width = 11, height = 5
+    width = 11, height = 5,
+    family = "Helvetica"
 )
 
 # p5 --------------------------------------------------
-p5 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) +
+p5 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) -
+    # set default theme
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold")
+    ) +
     # add heatmap
     ggheatmap(theme = theme(panel.spacing.x = unit(1, "mm"))) +
-    scale_fill_viridis_c(name = "relabund", option = "A", limits = c(0, 1)) +
+    scale_fill_viridis_c(
+        name = "relabund",
+        option = "plasma",
+        limits = c(0, 1),
+        breaks = scales::pretty_breaks(3L)
+    ) +
     theme_no_axes("x") +
-    theme(plot.margin = margin()) +
+    theme(axis.text.y = element_text(colour = "black")) +
 
     anno_left(size = 0.2) +
     align_dendro() +
     scale_x_continuous(breaks = scales::pretty_breaks(3L)) +
-    theme(plot.margin = margin()) +
 
     anno_top() +
     align_group(metadata$project) +
@@ -294,9 +362,8 @@ p5 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) +
         merge_dendrogram = TRUE
     ) +
     scale_color_brewer(palette = "Dark2", guide = "none") +
-    scale_y_continuous(expand = expansion()) +
+    scale_y_continuous(expand = expansion(), guide = "none") +
     no_expansion("y") +
-    theme(plot.margin = margin()) +
 
     # add boxplot to annotate observations
     stack_active() -
@@ -350,9 +417,16 @@ p5 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) +
     scale_fill_brewer(name = "Project", palette = "Dark2") +
     xlab(NULL) +
     no_expansion("x") +
-    theme(plot.margin = margin(), panel.border = element_rect(fill = NA))
+    theme(
+        panel.border = element_rect(fill = NA),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+    )
 
-ggsave("figures/microbiome/p5.pdf", plot = p5, width = 11, height = 7)
+ggsave("figures/microbiome/p5.pdf",
+    plot = p5, width = 11, height = 7,
+    family = "Helvetica"
+)
 
 # COAD vs STAD ----------------------------------------
 library(magrittr)
@@ -421,23 +495,37 @@ genus_to_phylum <- genus_to_phylum %>%
     dplyr::distinct()
 anyDuplicated(genus_to_phylum$genus)
 
-p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) +
+p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
+    # set default theme
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")
+    ) +
 
     # add COAD heatmap
     ggheatmap(~ .x[, metadata$project == "COAD"]) +
-    scale_fill_viridis_c(name = "relabund", option = "A", limits = c(0, 1)) +
+    scale_fill_viridis_c(
+        name = "relabund",
+        option = "plasma", 
+        limits = c(0, 1),
+        breaks = scales::pretty_breaks(3L)
+    ) +
     theme_no_axes("x") +
-    theme(plot.margin = margin(), axis.text.y = element_text(size = 12)) +
 
     ## for the heatmap, add top annotation
     anno_top() -
     scheme_align(free_spaces = "lr") +
     align_dendro(aes(color = branch), k = 3L) +
     scale_color_brewer(palette = "Set2", guide = "none") +
-    scale_y_continuous(breaks = scales::breaks_pretty(3)) +
+    theme_no_axes("y") +
     ggtitle("phylum") +
     no_expansion() +
-    theme(plot.margin = margin()) +
 
     # add a box to compare the relabundance
     stack_active() +
@@ -485,7 +573,11 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) +
 
     # add STAD heatmap
     ggheatmap(~ .x[, metadata$project == "STAD"]) +
-    scale_fill_viridis_c(name = "relabund", option = "A", limits = c(0, 1)) +
+    scale_fill_viridis_c(
+        name = "relabund",
+        option = "plasma", limits = c(0, 1),
+        breaks = scales::pretty_breaks(3L)
+    ) +
     theme_no_axes() +
     theme(plot.margin = margin()) +
     anno_top() -
@@ -493,7 +585,7 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) +
     align_dendro(aes(color = branch), k = 3L) +
     scale_color_brewer(palette = "Set2", guide = "none") +
     no_expansion("y") +
-    theme(plot.margin = margin()) +
+    theme_no_axes("y") +
     stack_active() +
 
     # add differential expressed genus
@@ -527,26 +619,28 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) +
     ) +
 
     ggheatmap() +
-    scale_fill_viridis_c(name = "relabund", option = "A", limits = c(0, 1)) +
+    scale_fill_viridis_c(
+        name = "relabund",
+        option = "plasma", limits = c(0, 1),
+        breaks = scales::pretty_breaks(3L)
+    ) +
     scale_y_continuous(position = "right") +
     theme_no_axes("x") +
-    theme(
-        plot.margin = margin(),
-        panel.border = element_rect(fill = NA)
+    theme(panel.border = element_rect(fill = NA),
+        axis.text.y = element_text(size = 14)
     ) +
 
     anno_top() -
     scheme_align(free_spaces = "l") +
     align_group(metadata$project[metadata$project %in% c("COAD", "STAD")]) +
-    align_dendro(aes(color = branch),
-        key_glyph = draw_key_rect
-    ) +
+    align_dendro(aes(color = branch), key_glyph = draw_key_rect) +
     ggtitle("genus") +
     scale_color_brewer(palette = "Set1", name = "Project") +
-    scale_y_continuous(breaks = scales::breaks_pretty(3)) +
+    # scale_y_continuous(breaks = scales::breaks_pretty(3)) +
     no_expansion("y") +
-    theme(plot.margin = margin())
+    theme_no_axes("y")
 
 ggsave("figures/microbiome/p6.pdf",
-    plot = p6, width = 11, height = 7
+    plot = p6, width = 11, height = 7,
+    family = "Helvetica"
 )

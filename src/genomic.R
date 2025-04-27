@@ -1,6 +1,7 @@
 library(ggalign)
 library(magrittr)
 library(forcats)
+library(legendry)
 if (!dir.exists("figures/genomic")) dir.create("figures/genomic")
 
 # p1 -----------------------------------------------------------
@@ -10,143 +11,30 @@ gene_data <- fortify_matrix(maf,
     collapse_vars = FALSE, n_top = 20L,
     missing_genes = "remove"
 )
+
 pathway_data <- fortify_matrix(tune(maf))
-gene_onco <- ggoncoplot(gene_data, filling = FALSE) +
-    geom_subtile(aes(fill = value), direction = "v") +
-    theme_no_axes("x") +
-    # since legends from geom_tile (oncoPrint body) and `geom_bar`
-    # is different, though both looks like the same, the internal
-    # won't merge the legends. we remove the legends of oncoPrint body
-    guides(fill = "none") +
-    scale_y_continuous(position = "right") +
-
-    # add top annotation
-    anno_top(size = 0.2) -
-    scheme_align(free_spaces = "l") +
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "sample_summary")
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:(ncol(data) - 1L)])
-    }) +
-    geom_bar(aes(.x, value, fill = .column_names),
-        stat = "identity"
-    ) +
-    scale_y_log10(
-        expand = expansion(),
-        breaks = scales::breaks_log()
-    ) +
-    ylab("TMB") +
-
-    # add right annotation
-    anno_right(size = 0.25) -
-    # remove bottom spaces of the right annotation when aligning
-    scheme_align(free_spaces = "b") +
-    # add the text percent for the alterated samples in the right annotation
-    ggalign(data = function(data) {
-        # Atomic vector will be put in the `value` column of the data frame.
-        ggalign_attr(data, "gene_summary")$AlteredSamples /
-            ggalign_attr(data, "n_samples")
-    }) +
-    geom_text(aes(1, label = scales::label_percent()(value)), hjust = 1) +
-    scale_x_continuous(
-        expand = expansion(),
-        name = NULL, breaks = NULL,
-        limits = c(0, 1)
-    ) +
-    theme(plot.margin = margin()) +
-    # add the bar plot in the right annotation
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "gene_summary")
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:(ncol(data) - 3L)])
-    }) +
-    geom_bar(aes(value, fill = .column_names),
-        stat = "identity",
-        orientation = "y"
-    ) +
-    scale_x_continuous(breaks = scales::pretty_breaks(2)) +
-    xlab("No. of samples") -
-    # we apply the scale mapping to the top and right annotation: `position =
-    # "tr"` and the main plot: `main = TRUE`
-    with_quad(
-        scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE),
-        position = "tr",
-        main = TRUE
-    ) +
-    # add bottom annotation
-    anno_bottom(size = 0.2) -
-    scheme_align(free_spaces = "l") +
-    # add bar plot in the bottom annotation
-    ggalign(data = function(data) {
-        data <- ggalign_attr(data, "titv")$fraction.contribution
-        # matrix input will be automatically melted into a long foramted data
-        # frame in `ggalign()` function.
-        as.matrix(data[2:7])
-    }) +
-    geom_bar(aes(y = value, fill = .column_names), stat = "identity") +
-    ylab("Ti/Tv") +
-    scale_fill_brewer("Ti/Tv", palette = "Set2")
-
-p1 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
-    scheme_theme(plot.margin = margin()) +
-    # ggoncoplot(gene_data, filling = FALSE) +
-    # geom_subtile(aes(fill = value), direction = "v") +
-    # theme_no_axes("x") +
-    # stack_active() +
-    ggoncoplot(pathway_data, reorder_row = TRUE, reorder_column = FALSE) +
-    scale_fill_manual(values = "red", guide = "none", na.translate = FALSE) +
-    theme_no_axes("x") +
-    theme(axis.text.y = element_text(size = 12)) +
-    ggtitle("Pathways") +
-    scheme_align(free_spaces = "t") +
-    anno_top() +
-    align_reorder(memo_order, reverse = TRUE) +
-
-    stack_active() +
-    cross_link(
-        link_line(
-            !!!pair_links(!!!purrr::imap(
-                ggalign_attr(pathway_data, "gene_list"),
-                function(gene, pathway) pathway ~ gene
-            )),
-            .handle_missing = "remove"
-        ),
-        gene_data,
-        size = 0.2
-    ) +
-    gene_onco +
-    anno_top() +
-    ggmark(
-        mark_tetragon(
-            ~ colnames(gene_data)[!is.na(gene_data["TP53", , drop = TRUE])],
-            .element = element_polygon(
-                fill = "orange", color = NA, alpha = 0.5
-            )
-        ),
-        data = NULL,
-        mapping = aes(.names, .row_names),
-        active = ggalign::active(order = 1),
-        size = 2
-    ) +
+highlight_tp53 <- stack_crossv(
+    rlang::set_names(
+        colnames(gene_data)[!is.na(gene_data["TP53", , drop = TRUE])]
+    )
+) +
+    # add plot for TP53 data only
+    ggalign(mapping = aes(.column_names, .row_names)) +
     scheme_data(function(d) {
-        out <- dplyr::left_join(
-            d,
-            dplyr::select(fortify_data_frame(pathway_data), !.column_index),
-            by = c(.names = ".column_names")
-        )
-        n <- length(unique(d$.names))
+        out <- fortify_data_frame(pathway_data) |>
+            dplyr::select(!.column_index) |>
+            dplyr::filter(.data$.column_names %in% .env$d$value)
+        n <- length(unique(d$value))
         prop <- dplyr::summarise(
             out,
-            n = length(unique(.names[!is.na(value)])),
+            n = length(unique(.column_names[!is.na(value)])),
             .by = .row_names
         )
         prop$prop <- prop$n / n
         prop <- dplyr::filter(
-            prop, 
+            prop,
             # prop > 1/2,
-            prop > 0.1, 
+            prop > 0.1,
             !.row_names %in% c("Other", "Other signaling")
         ) %>%
             dplyr::arrange(.data$n)
@@ -154,7 +42,9 @@ p1 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
         dplyr::mutate(
             out,
             .row_names = factor(.row_names, rev(prop$.row_names)),
-            .names = fct_reorder(.names, value, function(x) sum(!is.na(x)),
+            .column_names = fct_reorder(
+                .column_names, value,
+                function(x) sum(!is.na(x)),
                 .na_rm = FALSE, .desc = TRUE
             )
         )
@@ -177,7 +67,7 @@ p1 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
         linejoin = "round", lineend = "round",
         data = function(d) {
             out <- dplyr::filter(d, !is.na(value))
-            out$x <- as.integer(factor(out$.names))
+            out$x <- as.integer(factor(out$.column_names))
             out$y <- as.integer(out$.row_names)
             out <- dplyr::mutate(
                 dplyr::arrange(out, x, y),
@@ -203,13 +93,160 @@ p1 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
     theme_no_axes("x") +
     ylab(NULL) +
     theme(
-        plot.margin = margin(b = 0.2, unit = "npc"),
         panel.border = element_blank(),
         axis.ticks.y = element_blank()
-    )
-ggsave("figures/genomic/p1.pdf", plot = p1, width = 15, height = 8)
+    ) +
+
+    # add a link
+    cross_link(
+        link_tetragon(
+            colnames(gene_data)[
+                !is.na(gene_data["TP53", , drop = TRUE])
+            ] ~ waiver(),
+            .element = element_polygon(
+                fill = "orange", color = NA, alpha = 0.8
+            )
+        ),
+        data = ggalign:::ggalign_data_restore(t(gene_data), gene_data),
+        size = 0.5, on_top = FALSE
+    ) +
+    ggplot2::expand_limits(x = c(0, 1), y = c(0, 1)) +
+
+    annotate("text",
+        x = -Inf, y = 0.5, hjust = 0,
+        label = "TP53", fontface = "bold", size = 8
+    ) +
+    theme_no_axes() +
+
+    # add plot for TMB of all mutations
+    ggalign(
+        data = function(data) {
+            data <- ggalign_attr(data, "sample_summary")
+            # matrix input will be automatically melted into a long foramted data
+            # frame in `ggalign()` function.
+            as.matrix(data[2:(ncol(data) - 1L)])
+        },
+        size = 0.8
+    ) +
+    geom_bar(aes(.x, value, fill = .column_names), stat = "identity") +
+    scale_y_log10(expand = expansion(), guide = "none") +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    ylab("TMB")
+
+gene_onco <- ggoncoplot(gene_data,
+    filling = FALSE,
+    reorder_column = FALSE,
+    reorder_row = TRUE
+) +
+    geom_subtile(aes(fill = value), ncol = 1) +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    theme_no_axes("x") +
+    # since legends from geom_tile (oncoPrint body) and `geom_bar`
+    # is different, though both looks like the same, the internal
+    # won't merge the legends. we remove the legends of oncoPrint body
+    guides(fill = "none") +
+    scale_y_continuous(position = "right") +
+
+    # add top annotation
+    anno_top(size = 0.2, initialize = FALSE) +
+    highlight_tp53 +
+    align_order2(memo_order) -
+    scheme_align(free_spaces = "l") +
+
+    # add right annotation
+    anno_right(size = 0.25) -
+    # remove bottom spaces of the right annotation when aligning
+    scheme_align(free_spaces = "b") +
+    # add the text percent for the alterated samples in the right annotation
+    ggalign(
+        data = function(data) {
+            # Atomic vector will be put in the `value` column of the data frame.
+            ggalign_attr(data, "gene_summary")$AlteredSamples /
+                ggalign_attr(data, "n_samples")
+        },
+        size = 2
+    ) +
+    geom_text(aes(1, label = scales::label_percent()(value)), hjust = 1) +
+    scale_x_continuous(
+        expand = expansion(),
+        name = NULL, breaks = NULL,
+        limits = c(0, 1)
+    ) +
+    theme(plot.margin = margin()) +
+    # add the bar plot in the right annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "gene_summary")
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:(ncol(data) - 3L)])
+    }) +
+    geom_bar(aes(value, fill = .column_names),
+        stat = "identity",
+        orientation = "y"
+    ) +
+    theme_no_axes("x") +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    xlab("No. of samples") +
+    # add bottom annotation
+    anno_bottom(size = 0.2) -
+    scheme_align(free_spaces = "l") +
+    # add bar plot in the bottom annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "titv")$fraction.contribution
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:7])
+    }) +
+    geom_bar(aes(y = value, fill = .column_names), stat = "identity") +
+    ylab("Ti/Tv") +
+    scale_fill_brewer("Ti/Tv", palette = "Set2") +
+    scale_y_continuous(breaks = scales::pretty_breaks(3L))
+
+p1 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")
+    ) +
+    # ggoncoplot(gene_data, filling = FALSE) +
+    # geom_subtile(aes(fill = value), direction = "v") +
+    # theme_no_axes("x") +
+    # stack_active() +
+    ggoncoplot(pathway_data, reorder_row = TRUE, reorder_column = FALSE) +
+    scale_fill_manual(values = "red", guide = "none", na.translate = FALSE) +
+    theme_no_axes("x") +
+    theme(axis.text.y = element_text(size = 14)) +
+    ggtitle("Pathways") +
+    scheme_align(free_spaces = "t") +
+    anno_top() +
+    align_order2(memo_order, reverse = TRUE) +
+
+    stack_active() +
+    cross_link(
+        link_line(
+            !!!pair_links(!!!purrr::imap(
+                ggalign_attr(pathway_data, "gene_list"),
+                function(gene, pathway) pathway ~ gene
+            )),
+            .handle_missing = "remove"
+        ),
+        gene_data,
+        size = 0.2
+    ) +
+    gene_onco
+
+ggsave("figures/genomic/p1.pdf",
+    plot = p1, width = 15, height = 8,
+    family = "Helvetica"
+)
 
 # p2 ---------------------------------------------------
+# Please download data from:
 # https://www.cell.com/immunity/fulltext/S1074-7613(18)30121-3?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1
 immune_subtypes <- readxl::read_xlsx(
     "rawdata/genomic/immune_subtypes.xlsx",
@@ -217,10 +254,6 @@ immune_subtypes <- readxl::read_xlsx(
 )
 nrow(immune_subtypes)
 
-# mclust_scores <- data.table::fread(
-#     "rawdata/genomic/five_signature_mclust_ensemble_results.tsv.gz"
-# )
-# nrow(mclust_scores)
 immune_scores <- data.table::fread(
     "rawdata/genomic/Scores_160_Signatures.tsv.gz"
 )
@@ -259,19 +292,33 @@ names(subtype_scores)[match(
     names(subtype_scores)
 )] <- subtypes
 
-p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) +
+p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
+    scheme_theme(
+        plot.margin = margin(),
+        axis.title = element_text(size = 10, face = "bold"),
+        axis.text = element_text(size = 10, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) -
+    scheme_align(NULL) +
     ggheatmap() +
-    geom_vline(aes(xintercept = .data$x), data = function(x) {
-        x <- dplyr::filter(x, .data$.column_names %in% subtypes) %>%
-            dplyr::select(.x) %>%
-            dplyr::distinct() %>%
-            dplyr::pull(.x)
-        data.frame(x = c(x - 0.5, x + 0.5))
-    }, linewidth = 0.1) +
+
+    # we will highlight the subtypes
+    geom_vline(
+        aes(xintercept = .data$x),
+        data = function(x) {
+            x <- dplyr::filter(x, .data$.column_names %in% subtypes) %>%
+                dplyr::select(.x) %>%
+                dplyr::distinct() %>%
+                dplyr::pull(.x)
+            data.frame(x = c(x - 0.5, x + 0.5))
+        },
+        linewidth = 0.1
+    ) +
     theme_no_axes() +
     no_expansion() +
     labs(fill = "Spearman\ncorrelation") +
-    scheme_align(NULL) +
 
     ## add top dendrogram
     anno_top(size = 0.1) -
@@ -286,11 +333,12 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) +
     align_dendro(method = "ward.D2") +
     theme_no_axes("x") +
     no_expansion("x") +
-    # move into the stack
+
+    # step into the parent stack
     stack_active() +
 
-    # the author don't present the full range of the signatures for each hub
-    # signature, we just link the single signature instead
+    # the original author don't present the full range of the signatures for
+    # each hub signature, we just link the single signature instead
     cross_link(
         link_tetragon(
             !!!lapply(subtypes, function(nm) nm ~ nm),
@@ -299,6 +347,7 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) +
                 color = NA
             )
         ),
+        # the data will be used for the layout
         data = t(subtype_scores[, 2:6]),
         inherit_index = TRUE,
         size = 0.1
@@ -317,8 +366,7 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) +
             dplyr::if_else(x == "C5", "C5  \n", x)
         })
     ) +
-    theme(strip.text.y.right = element_text(), strip.clip = "off") +
-
+    theme(strip.clip = "off") +
 
     # split by immune subtypes
     anno_left() +
@@ -339,23 +387,29 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) +
     geom_density(aes(value, fill = scaled_scores), color = NA) +
     geom_vline(xintercept = 0, linetype = "dashed") +
     scale_fill_gradient2("scaled\nscores", low = "blue", high = "red") +
-    theme_bw() +
-    theme_no_axes() +
-    theme(
-        strip.text.x = element_blank(),
-        strip.background = element_blank(),
-        panel.border = element_blank(),
-        axis.line.x.bottom = element_line()
-    ) +
     facet_grid(
         rows = vars(.extra_panel),
         cols = vars(.panel), as.table = FALSE,
         axes = "all_x"
-    ) &
-    theme(plot.margin = margin())
-ggsave("figures/genomic/p2.pdf", plot = p2, width = 7, height = 10)
+    ) +
+    theme_bw() +
+    theme_no_axes() +
+    theme(
+        strip.text.x = element_blank(),
+        strip.text.y = element_text(size = 14),
+        strip.background = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x.bottom = element_line(),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold")
+    )
+ggsave("figures/genomic/p2.pdf",
+    plot = p2, width = 7, height = 10,
+    family = "Helvetica"
+)
 
 # p3 --------------------------------------------------------
+# Please download data from:
 # https://www.cell.com/cancer-cell/fulltext/S1535-6108(18)30111-9?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1
 arm_alterations <- readxl::read_xlsx(
     "rawdata/genomic/arm_alteration.xlsx",
@@ -368,7 +422,15 @@ arm_alterations <- readxl::read_xlsx(
     tibble::column_to_rownames("Type") %>%
     as.matrix()
 
-p3 <- ggheatmap(t(arm_alterations), filling = NULL) +
+p3 <- ggheatmap(t(arm_alterations), filling = NULL) -
+    scheme_theme(
+        plot.margin = margin(),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
     geom_tile(aes(fill = value), width = 0.8) +
     geom_rect(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
         data = function(data) {
@@ -386,6 +448,7 @@ p3 <- ggheatmap(t(arm_alterations), filling = NULL) +
     ) +
     labs(fill = "Mean\nArm Alteration") +
     scale_x_continuous(position = "top") +
+    guides(y = primitive_labels(n.dodge = 2)) +
     theme(
         axis.text.x.top = element_text(
             angle = -90, hjust = 0.5, vjust = 0.5
@@ -397,6 +460,7 @@ p3 <- ggheatmap(t(arm_alterations), filling = NULL) +
         k = 6L, method = "ward.D2", distance = "spearman"
     ) +
     scale_color_brewer(palette = "Dark2", guide = "none") +
+    scale_y_continuous(breaks = scales::pretty_breaks(3L)) +
     no_expansion("y") +
     theme(plot.margin = margin()) +
     anno_bottom() +
@@ -425,28 +489,25 @@ p3 <- ggheatmap(t(arm_alterations), filling = NULL) +
     no_expansion("x") +
     ylab(NULL) +
     theme_no_axes("x") +
+    guides(y = primitive_labels(n.dodge = 2)) +
     theme(
         strip.text = element_blank(),
         strip.background = element_blank(),
         plot.margin = margin(l = 0.1, r = 0.2, t = 0.1, unit = "npc"),
         panel.spacing = unit(10, "mm")
     ) +
-    facet_wrap(vars(), scales = "free_x")
-ggsave("figures/genomic/p3.pdf", plot = p3, width = 8, height = 10)
+    facet_wrap(vars(), scales = "free_x") &
+    theme(
+        panel.background = element_blank(),
+        plot.background = element_blank()
+    )
+ggsave("figures/genomic/p3.pdf",
+    plot = p3, width = 8, height = 10,
+    family = "Helvetica"
+)
 
 # p4 ------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
+# See src/genomic-primary-vs-metastatic.R
 
 # p5 --------------------------------------------------------
 clidata <- readRDS("~/Data/TCGA_data/results/TCGA-BLCA/blca_clidata.rds")
@@ -632,7 +693,14 @@ forest_data <- dplyr::bind_rows(genome_integrity_os, .id = "project")
 dplyr::filter(forest_data, p.value < 0.05)
 
 p6 <- stack_alignh(rep(forest_data$project, each = 2L)) -
-    scheme_theme(plot.margin = margin(t = 5)) +
+    scheme_theme(
+        plot.margin = margin(t = 5L),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
 
     align_order(function(x) rev(seq_len(nrow(x)))) +
 
@@ -650,7 +718,7 @@ p6 <- stack_alignh(rep(forest_data$project, each = 2L)) -
     ) +
     theme(
         legend.position = "inside",
-        legend.position.inside = c(0.43, 0.35),
+        legend.position.inside = c(0.6, 0.3),
         legend.justification.inside = c(1, 1)
     ) +
 
@@ -749,4 +817,7 @@ p6 <- stack_alignh(rep(forest_data$project, each = 2L)) -
     xlab("log2(HR)") &
     coord_cartesian(clip = "off")
 
-ggsave("figures/genomic/p6.pdf", plot = p6, width = 7, height = 7)
+ggsave("figures/genomic/p6.pdf",
+    plot = p6, width = 7, height = 7,
+    family = "Helvetica"
+)

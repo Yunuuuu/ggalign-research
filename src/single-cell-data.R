@@ -2,6 +2,8 @@ library(SingleCellExperiment)
 if (!dir.exists("munging")) dir.create("munging")
 
 # read data -------------------------------------------------
+# Please download data from:
+# https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE210347
 data <- readRDS("rawdata/GSE210347_counts.Rds")
 metadata <- data.table::fread("rawdata/GSE210347_meta.txt.gz")
 sample_data <- data.table::fread("rawdata/GSE210347_sample_information.txt.gz")

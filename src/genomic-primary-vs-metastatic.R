@@ -274,7 +274,15 @@ library(ggalign)
 library(forcats)
 names(data)
 
-p <- stack_alignv(data.frame(row.names = colnames(etio_enrich_primary))) +
+p <- stack_alignv(data.frame(row.names = colnames(etio_enrich_primary))) -
+    scheme_theme(
+        plot.margin = margin(t = 5L),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
     align_group(factor(
         colnames(etio_enrich_primary),
         colnames(etio_enrich_primary)
@@ -375,7 +383,7 @@ p <- stack_alignv(data.frame(row.names = colnames(etio_enrich_primary))) +
     theme_no_axes("x") +
     theme(
         strip.clip = "off",
-        strip.text.x = element_text(angle = -90, hjust = 0),
+        strip.text.x = element_text(angle = -90, hjust = 0, size = 12),
         strip.background = element_blank(),
         legend.position = "bottom",
         # panel.border = element_rect(fill = NA, colour = "black")
@@ -384,8 +392,10 @@ p <- stack_alignv(data.frame(row.names = colnames(etio_enrich_primary))) +
     ) +
     no_expansion("x") +
     facet_grid(cols = vars(.panel), switch = "x")
-
-ggsave("figures/genomic/p4.pdf", plot = p, width = 10, height = 7)
+ggsave("figures/genomic/p4.pdf",
+    plot = p, width = 10, height = 7,
+    family = "Helvetica"
+)
 
 # moon plot
 # ggheatmap(etio_enrich_metastatic, filling = NULL) +
