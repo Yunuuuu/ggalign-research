@@ -1,4 +1,10 @@
-# Overview of ggalign's visualization capabilities.
+# Overview of ggalign's visualization capabilities
+
+Setup output directory
+```{r}
+#| code-fold: true
+if (!dir.exists("figures/gallery")) dir.create("figures/gallery")
+```
 
 ## Figure A
 Data was downloaded from https://pmc.ncbi.nlm.nih.gov/articles/PMC9856581/#app1-cancers-15-00342
