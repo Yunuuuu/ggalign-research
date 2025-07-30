@@ -13,7 +13,7 @@ We randomly selected 5 pathways for simplicity. The data preparation code is
 collapsed in the source but can be expanded for inspection.
 ```{r}
 #| code-fold: true
-# Read expression data from the supplementary Excel file
+# Read data from the supplementary Excel file
 data <- readxl::read_xlsx(
     "rawdata/circular/Supplementary tables.xlsx",
     skip = 1L
