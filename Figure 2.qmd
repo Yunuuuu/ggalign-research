@@ -726,7 +726,7 @@ ggsave(
 )
 ```
 
-# Figure H
+## Figure H
 We compare two transcriptomics datasets simulated using the `biotidy::mockSE()`
 function. The data preparation code is initially collapsed in the source but can
 be expanded for inspection.
