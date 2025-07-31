@@ -3,7 +3,12 @@
 Setup output directory
 ```{r}
 #| code-fold: true
-if (!dir.exists("figures/gallery")) dir.create("figures/gallery")
+if (!dir.exists("output/Figure 2")) dir.create("output/Figure 2")
+```
+
+```{r}
+#| code-fold: true
+library(ggalign)
 ```
 
 ## Figure A
@@ -15,7 +20,7 @@ collapsed in the source but can be expanded for inspection.
 #| code-fold: true
 # Read data from the supplementary Excel file
 data <- readxl::read_xlsx(
-    "rawdata/circular/Supplementary tables.xlsx",
+    "Figure 2/Supplementary tables.xlsx",
     skip = 1L
 )
 set.seed(3L)
@@ -89,7 +94,7 @@ circle_splitted <- circle_discrete(logFC,
         legend.text = element_text(size = 12),
         legend.title = element_text(face = "bold", size = 14)
     )
-ggsave("figures/gallery/circle_splitted.pdf",
+ggsave("output/Figure 2/A.pdf",
     plot = circle_splitted, width = 9, height = 8,
     family = "Helvetica"
 )
@@ -102,7 +107,7 @@ The data preparation code is collapsed in the source but can be expanded for
 inspection.
 ```{r}
 #| code-fold: true
-alltax <- read.csv("rawdata/circular/all_stain_taxonomy.csv")
+alltax <- read.csv("Figure 2/all_stain_taxonomy.csv")
 trda <- MicrobiotaProcess::convert_to_treedata(alltax)
 trda <- ape::as.phylo(trda)
 template_mat <- matrix(
@@ -110,12 +115,12 @@ template_mat <- matrix(
     nrow = length(trda$tip.label), ncol = length(trda$tip.label),
     dimnames = list(trda$tip.label, trda$tip.label)
 )
-linktab <- read.csv("rawdata/circular/Interaction_link_tab.csv")
+linktab <- read.csv("Figure 2/Interaction_link_tab.csv")
 all(linktab$Inhibitor %in% trda$tip.label)
 all(linktab$Sensitive %in% trda$tip.label)
 
-weighttab <- read.csv("rawdata/circular/Interaction_weight.csv")
-tippoint <- read.csv("rawdata/circular/stain_tippoint.csv")
+weighttab <- read.csv("Figure 2/Interaction_weight.csv")
+tippoint <- read.csv("Figure 2/stain_tippoint.csv")
 tippoint$Taxa <- factor(tippoint$Taxa,
     levels = c(
         "Actinobacteria",
@@ -128,7 +133,7 @@ tippoint$Taxa <- factor(tippoint$Taxa,
     )
 )
 tippoint$names <- gsub("s__Leaf", "", tippoint$Isolation)
-BGCsda <- read.csv("rawdata/circular/BGCs_heatmap.csv")
+BGCsda <- read.csv("Figure 2/BGCs_heatmap.csv")
 BGCsda$BGCs <- factor(BGCsda$BGCs,
     levels = c(
         "modular.PKS",
@@ -239,7 +244,7 @@ circle <- circle_discrete(trda,
         panel.background = element_blank(),
         text = element_text(family = "Helvetica")
     )
-ggsave("figures/gallery/circle.pdf",
+ggsave("output/Figure 2/B.pdf",
     plot = circle, width = 8.5, height = 7,
     family = "Helvetica"
 )
@@ -287,7 +292,7 @@ side_plot <- ggside(i2, aes(Sepal.Width, Sepal.Length, color = Species)) +
         axis.text = element_text(size = 20),
         axis.title = element_text(size = 20, face = "bold")
     )
-ggsave("figures/gallery/side_plot.pdf",
+ggsave("output/Figure 2/C.pdf",
     plot = side_plot, width = 8, height = 8,
     family = "Helvetica"
 )
@@ -359,7 +364,7 @@ upset <- ggupset(tune(upset_data),
         axis.text.x = element_text(size = 16)
     ) &
     theme(plot.background = element_blank())
-ggsave("figures/gallery/upset.pdf", plot = upset, width = 8, height = 4)
+ggsave("output/Figure 2/D.pdf", plot = upset, width = 8, height = 4)
 ```
 
 ## Figure E
@@ -495,7 +500,7 @@ heatmap3d <- ggheatmap(small_mat,
         plot.background = element_blank(),
         panel.background = element_blank()
     )
-ggsave("figures/gallery/heatmap3d.pdf",
+ggsave("output/Figure 2/E.pdf",
     plot = heatmap3d, width = 7, height = 6.5, family = "Helvetica"
 )
 ```
@@ -637,7 +642,7 @@ oncoplot <- ggoncoplot(
         plot.background = element_blank()
     )
 ggsave(
-    "figures/gallery/oncoplot.pdf",
+    "output/Figure 2/F.pdf",
     plot = oncoplot, family = "Helvetica",
     width = 9, height = 6
 )
@@ -720,7 +725,7 @@ link_observations <- stack_crossh() +
     ) &
     scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave(
-    "figures/gallery/link_observations.pdf",
+    "output/Figure 2/G.pdf",
     plot = link_observations, family = "Helvetica",
     width = 9, height = 6
 )
@@ -836,7 +841,7 @@ annotate_observations <- stack_crossh(expr1) -
     theme_no_axes("x") &
     scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave(
-    "figures/gallery/annotate_observations.pdf",
+    "output/Figure 2/H.pdf",
     plot = annotate_observations, family = "Helvetica",
     width = 9, height = 6
 )
