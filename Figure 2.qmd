@@ -18,13 +18,14 @@ We randomly selected 5 pathways for simplicity. The data preparation code is
 collapsed in the source but can be expanded for inspection.
 ```{r}
 #| code-fold: true
+#| output: false
 # Read data from the supplementary Excel file
 data <- readxl::read_xlsx(
     "Figure 2/Supplementary tables.xlsx",
     skip = 1L
 )
-set.seed(3L)
 
+set.seed(3L)
 # Randomly select 5 pathways (rows 2–18 cover the main data)
 selected <- sample(2:18, 5)
 
@@ -107,6 +108,7 @@ The data preparation code is collapsed in the source but can be expanded for
 inspection.
 ```{r}
 #| code-fold: true
+#| output: false
 alltax <- read.csv("Figure 2/all_stain_taxonomy.csv")
 trda <- MicrobiotaProcess::convert_to_treedata(alltax)
 trda <- ape::as.phylo(trda)
