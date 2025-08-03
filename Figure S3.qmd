@@ -1,0 +1,128 @@
+# Coordinated or Discordant patterns bettween transcriptomic and proteomic profiles
+
+To reduce visual complexity while retaining biological signal, we selected the
+top positively and negatively correlated genes between transcriptomic and
+proteomic data. These correlations highlight genes with concordant or discordant
+regulation across molecular layers. The preprocessing steps are hidden below but
+can be expanded for inspection
+
+```{r}
+#| code-fold: true
+#| output: false
+pathway <- readr::read_tsv("Figure S3/oncogenic_sig_patwhays.tsv")
+
+data_t <- readxl::read_excel("Figure S3/mmc2.xlsx", sheet = 5) |>
+    dplyr::filter(idx %in% pathway$Gene)
+data_p <- readxl::read_excel("Figure S3/mmc2.xlsx", sheet = 2) |>
+    dplyr::filter(idx %in% pathway$Gene)
+
+anyDuplicated(data_t$idx)
+anyDuplicated(data_p$idx)
+
+common_ids <- intersect(data_t$idx, data_p$idx)
+common_samples <- intersect(colnames(data_t), colnames(data_p))
+data_t <- data_t |>
+    dplyr::filter(idx %in% common_ids) |>
+    dplyr::select(all_of(common_samples))
+data_p <- data_p |>
+    dplyr::filter(idx %in% common_ids) |>
+    dplyr::select(all_of(common_samples))
+transcriptomics <- data_t |>
+    tibble::column_to_rownames("idx") |>
+    as.matrix()
+proteomics <- data_p |>
+    tibble::column_to_rownames("idx") |>
+    dplyr::mutate_all(as.numeric) |>
+    as.matrix()
+all(rownames(transcriptomics) == rownames(proteomics))
+all(colnames(transcriptomics) == colnames(proteomics))
+
+# remove genes with missing value
+keep <- rowSums(is.na(proteomics)) == 0L
+transcriptomics <- transcriptomics[keep, ]
+proteomics <- proteomics[keep, ]
+
+cor_vec <- c()
+for (i in seq_len(nrow(transcriptomics))) {
+    cor_vec <- c(cor_vec, cor(transcriptomics[i, ], proteomics[i, ],
+        use = "pairwise.complete.obs", method = "pearson"
+    ))
+}
+dt <- data.frame(id = rownames(transcriptomics), cor = cor_vec) |>
+    dplyr::left_join(pathway, by = c("id" = "Gene"))
+genes_selected <- dt |>
+    dplyr::group_by(sign(cor)) |>
+    dplyr::slice_max(order_by = abs(cor), n = 10) |>
+    dplyr::pull(id)
+transcriptomics2 <- transcriptomics[genes_selected, ]
+proteomics2 <- proteomics[genes_selected, ]
+```
+
+```{r}
+#| code-fold: true
+library(ggalign)
+```
+
+```{r}
+FigureS3 <- stack_crossh() +
+
+    # add heatmap ---------------------------
+    ggheatmap(transcriptomics2) +
+    ggtitle("Transcriptomics") +
+    theme_no_axes("x") +
+    guides(fill = guide_colorbar(title = "Transcriptomics")) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+
+    ## add left annotations -----------------
+    anno_left(size = 0.25) +
+    align_dendro(aes(color = branch), k = 4L) +
+    theme_no_axes("x") +
+
+    # add Links -----------------------------
+    stack_active() +
+    cross_link(
+        link_line(.element = element_line(
+            colour = rep(RColorBrewer::brewer.pal(3, "Dark2"), c(4, 3, 2))[
+                order(c(7, 4, 6, 9, 8, 3, 2, 1, 5))
+            ]
+        )),
+        size = 0.5
+    ) +
+    theme(plot.margin = margin()) +
+
+    # add another heatmap -------------------
+    ggheatmap(proteomics2) +
+    ggtitle("Proteomics") +
+    scale_y_continuous(position = "right") +
+    theme_no_axes("x") +
+    guides(fill = guide_colorbar(title = "Proteomics")) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
+    ) +
+
+    ## add right annotations ----------------
+    anno_right(size = 0.25) +
+    align_dendro(aes(color = branch), k = 4L) +
+    theme_no_axes("x") &
+
+    # set scales
+    scale_fill_viridis_c(
+        option = "plasma",
+        breaks = scales::breaks_pretty(3L),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
+    ) &
+    scale_color_brewer(palette = "Dark2", guide = "none")
+ggsave("output/FigureS3.pdf",
+    plot = FigureS3, width = 9, height = 8,
+    family = "Helvetica"
+)
+```

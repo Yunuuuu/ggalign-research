@@ -121,7 +121,7 @@ FigureS2 <- circle_genomic(
     ) &
     facet_sector(vars(seqnames), drop = FALSE) &
     theme(panel.background = element_rect(color = "black", fill = NA))
-ggsave("output/Figure S2.pdf",
+ggsave("output/FigureS2.pdf",
     plot = FigureS2, width = 9, height = 8,
     family = "Helvetica"
 )
