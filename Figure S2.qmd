@@ -1,15 +1,61 @@
-# Genomic density and Rainfall plot
+# Coordinated or Discordant patterns bettween transcriptomic and proteomic profiles
 
-Setup output directory
+To reduce visual complexity while retaining biological signal, we selected the
+top positively and negatively correlated genes between transcriptomic and
+proteomic data. These correlations highlight genes with concordant or discordant
+regulation across molecular layers. The preprocessing steps are hidden below but
+can be expanded for inspection
+
 ```{r}
 #| code-fold: true
-if (!dir.exists("output")) dir.create("output")
-```
+#| output: false
+pathway <- readr::read_tsv("Figure S2/oncogenic_sig_patwhays.tsv")
 
-```{r}
-load(system.file(package = "circlize", "extdata", "DMR.RData"))
-bed_data <- dplyr::bind_rows(hyper = DMR_hyper, hypo = DMR_hypo, .id = "DMR") |>
-    dplyr::relocate(DMR, .after = dplyr::last_col())
+data_t <- readxl::read_excel("Figure S2/mmc2.xlsx", sheet = 5) |>
+    dplyr::filter(idx %in% pathway$Gene)
+data_p <- readxl::read_excel("Figure S2/mmc2.xlsx", sheet = 2) |>
+    dplyr::filter(idx %in% pathway$Gene)
+
+anyDuplicated(data_t$idx)
+anyDuplicated(data_p$idx)
+
+common_ids <- intersect(data_t$idx, data_p$idx)
+common_samples <- intersect(colnames(data_t), colnames(data_p))
+data_t <- data_t |>
+    dplyr::filter(idx %in% common_ids) |>
+    dplyr::select(all_of(common_samples))
+data_p <- data_p |>
+    dplyr::filter(idx %in% common_ids) |>
+    dplyr::select(all_of(common_samples))
+transcriptomics <- data_t |>
+    tibble::column_to_rownames("idx") |>
+    as.matrix()
+proteomics <- data_p |>
+    tibble::column_to_rownames("idx") |>
+    dplyr::mutate_all(as.numeric) |>
+    as.matrix()
+all(rownames(transcriptomics) == rownames(proteomics))
+all(colnames(transcriptomics) == colnames(proteomics))
+
+# remove genes with missing value
+keep <- rowSums(is.na(proteomics)) == 0L
+transcriptomics <- transcriptomics[keep, ]
+proteomics <- proteomics[keep, ]
+
+cor_vec <- c()
+for (i in seq_len(nrow(transcriptomics))) {
+    cor_vec <- c(cor_vec, cor(transcriptomics[i, ], proteomics[i, ],
+        use = "pairwise.complete.obs", method = "pearson"
+    ))
+}
+dt <- data.frame(id = rownames(transcriptomics), cor = cor_vec) |>
+    dplyr::left_join(pathway, by = c("id" = "Gene"))
+genes_selected <- dt |>
+    dplyr::group_by(sign(cor)) |>
+    dplyr::slice_max(order_by = abs(cor), n = 10) |>
+    dplyr::pull(id)
+transcriptomics2 <- transcriptomics[genes_selected, ]
+proteomics2 <- proteomics[genes_selected, ]
 ```
 
 ```{r}
@@ -18,109 +64,63 @@ library(ggalign)
 ```
 
 ```{r}
-FigureS2 <- circle_genomic(
-    "hg19",
-    radial = coord_radial(inner.radius = 0.2, rotate.angle = TRUE),
-    direction = "inward",
-    theme = theme(
-        plot.margin = margin(t = 10, b = 10, l = 2, unit = "mm")
-    )
-) -
-    # Remove radial axes for a cleaner circular look
-    scheme_theme(
-        axis.text.r = element_blank(),
-        axis.ticks.r = element_blank()
+FigureS2 <- stack_crossh() +
+
+    # add heatmap ---------------------------
+    ggheatmap(transcriptomics2) +
+    ggtitle("Transcriptomics") +
+    theme_no_axes("x") +
+    guides(fill = guide_colorbar(title = "Transcriptomics")) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
     ) +
 
-    # Cytoband (Ideogram) Layer ------------------
-    ggalign(size = 0.1) +
-    geom_rect(
-        aes(
-            xmin = start, xmax = end, ymin = 0, ymax = 1,
-            fill = gieStain
-        )
+    ## add left annotations -----------------
+    anno_left(size = 0.25) +
+    align_dendro(aes(color = branch), k = 4L) +
+    theme_no_axes("x") +
+
+    # add Links -----------------------------
+    stack_active() +
+    cross_link(
+        link_line(.element = element_line(
+            colour = rep(RColorBrewer::brewer.pal(3, "Dark2"), c(4, 3, 2))[
+                order(c(7, 4, 6, 9, 8, 3, 2, 1, 5))
+            ]
+        )),
+        size = 0.5
     ) +
-    scale_fill_manual(
-        values = c(
-            gpos100 = rgb(0, 0, 0, maxColorValue = 255),
-            gpos = rgb(0, 0, 0, maxColorValue = 255),
-            gpos75 = rgb(130, 130, 130, maxColorValue = 255),
-            gpos66 = rgb(160, 160, 160, maxColorValue = 255),
-            gpos50 = rgb(200, 200, 200, maxColorValue = 255),
-            gpos33 = rgb(210, 210, 210, maxColorValue = 255),
-            gpos25 = rgb(200, 200, 200, maxColorValue = 255),
-            gvar = rgb(220, 220, 220, maxColorValue = 255),
-            gneg = rgb(255, 255, 255, maxColorValue = 255),
-            acen = rgb(217, 47, 39, maxColorValue = 255),
-            stalk = rgb(100, 127, 164, maxColorValue = 255)
-        ),
-        guide = "none"
-    ) +
-    scale_x_continuous(
-        breaks = scales::breaks_pretty(2),
-        labels = scales::label_bytes()
-    ) +
-    guides(
-        r = "none", r.sec = "axis",
-        theta = guide_axis_theta(angle = 0)
-    ) +
-    theme(axis.text.theta = element_text(size = 6)) +
-    scale_y_continuous(limits = c(0, 1), oob = scales::oob_keep) +
-    # Add chromosome labels
-    geom_text(aes(middle, label = seqnames, y = 2.2),
-        vjust = 0,
-        data = function(d) {
-            data <- ggalign_attr(d, "ranges")
-            data$middle <- (data$start + data$end) / 2
-            data
-        }
+    theme(plot.margin = margin()) +
+
+    # add another heatmap -------------------
+    ggheatmap(proteomics2) +
+    ggtitle("Proteomics") +
+    scale_y_continuous(position = "right") +
+    theme_no_axes("x") +
+    guides(fill = guide_colorbar(title = "Proteomics")) +
+    theme(
+        plot.margin = margin(),
+        axis.text.y = element_text(size = 16),
+        plot.title = element_text(face = "bold", size = 20)
     ) +
 
-    # add rainfall plot -----------------------
-    ggalign(bed_data) +
-    geom_point(
-        aes(middle, log10(dist), color = DMR),
-        data = function(d) {
-            d <- dplyr::bind_rows(!!!lapply(
-                split(d, ~DMR), function(dd) genomic_dist(dd)
-            ))
-            d$middle <- (d$start + d$end) / 2
-            dplyr::rename(d, seqnames = chr)
-        }
-    ) +
-    scale_color_brewer(
-        palette = "Dark2",
-        guide = guide_legend(
-            position = "inside",
-            theme = theme(legend.position.inside = c(0.5, 0.5))
-        )
-    ) +
+    ## add right annotations ----------------
+    anno_right(size = 0.25) +
+    align_dendro(aes(color = branch), k = 4L) +
+    theme_no_axes("x") &
 
-    # add density plot -----------------------
-    ggalign(DMR_hyper, size = 0.5) +
-    geom_density(
-        aes(middle, density, color = after_scale(fill)),
-        fill = RColorBrewer::brewer.pal(3, "Dark2")[1L],
-        stat = "identity",
-        data = function(d) {
-            d <- genomic_density(d)
-            d$middle <- (d$start + d$end) / 2
-            d
-        }
-    ) +
-    ggalign(DMR_hypo, size = 0.5) +
-    geom_density(
-        aes(middle, density, color = after_scale(fill)),
-        fill = RColorBrewer::brewer.pal(3, "Dark2")[2L],
-        stat = "identity",
-        data = function(d) {
-            d <- genomic_density(d)
-            d$middle <- (d$start + d$end) / 2
-            d
-        }
+    # set scales
+    scale_fill_viridis_c(
+        option = "plasma",
+        breaks = scales::breaks_pretty(3L),
+        guide = guide_colorbar(theme = theme(
+            legend.text = element_text(size = 18),
+            legend.title = element_text(face = "bold", size = 16)
+        ))
     ) &
-    facet_sector(vars(seqnames), drop = FALSE) &
-    theme(panel.background = element_rect(color = "black", fill = NA))
+    scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave("output/FigureS2.pdf",
     plot = FigureS2, width = 9, height = 8,
     family = "Helvetica"

@@ -12,7 +12,7 @@ library(ggalign)
 ```
 
 ## Figure A
-Data was downloaded from https://pmc.ncbi.nlm.nih.gov/articles/PMC9856581/#app1-cancers-15-00342
+Data was downloaded from <https://pmc.ncbi.nlm.nih.gov/articles/PMC9856581/#app1-cancers-15-00342>
 
 We randomly selected 5 pathways for simplicity. The data preparation code is
 collapsed in the source but can be expanded for inspection.
@@ -21,7 +21,7 @@ collapsed in the source but can be expanded for inspection.
 #| output: false
 # Read data from the supplementary Excel file
 data <- readxl::read_xlsx(
-    "Figure 2/Supplementary tables.xlsx",
+    "Figure2/Supplementary tables.xlsx",
     skip = 1L
 )
 
@@ -109,7 +109,7 @@ inspection.
 ```{r}
 #| code-fold: true
 #| output: false
-alltax <- read.csv("Figure 2/all_stain_taxonomy.csv")
+alltax <- read.csv("Figure2/all_stain_taxonomy.csv")
 trda <- MicrobiotaProcess::convert_to_treedata(alltax)
 trda <- ape::as.phylo(trda)
 template_mat <- matrix(
@@ -117,12 +117,12 @@ template_mat <- matrix(
     nrow = length(trda$tip.label), ncol = length(trda$tip.label),
     dimnames = list(trda$tip.label, trda$tip.label)
 )
-linktab <- read.csv("Figure 2/Interaction_link_tab.csv")
+linktab <- read.csv("Figure2/Interaction_link_tab.csv")
 all(linktab$Inhibitor %in% trda$tip.label)
 all(linktab$Sensitive %in% trda$tip.label)
 
-weighttab <- read.csv("Figure 2/Interaction_weight.csv")
-tippoint <- read.csv("Figure 2/stain_tippoint.csv")
+weighttab <- read.csv("Figure2/Interaction_weight.csv")
+tippoint <- read.csv("Figure2/stain_tippoint.csv")
 tippoint$Taxa <- factor(tippoint$Taxa,
     levels = c(
         "Actinobacteria",
@@ -135,7 +135,7 @@ tippoint$Taxa <- factor(tippoint$Taxa,
     )
 )
 tippoint$names <- gsub("s__Leaf", "", tippoint$Isolation)
-BGCsda <- read.csv("Figure 2/BGCs_heatmap.csv")
+BGCsda <- read.csv("Figure2/BGCs_heatmap.csv")
 BGCsda$BGCs <- factor(BGCsda$BGCs,
     levels = c(
         "modular.PKS",
