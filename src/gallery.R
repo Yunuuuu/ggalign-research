@@ -251,7 +251,7 @@ side_plot <- ggside(i2, aes(Sepal.Width, Sepal.Length, color = Species)) +
         strip.text = element_text(size = 20, margin = margin(5, 5, 5, 5)),
         strip.background = element_rect(fill = "grey")
     ) -
-    with_quad(scheme_theme(theme_bw()), "tr", main = TRUE) &
+    quad_scope(scheme_theme(theme_bw()), "tri") &
     scale_color_brewer(palette = "Dark2", guide = "none") &
     scale_x_continuous(breaks = scales::pretty_breaks(3L)) &
     scale_y_continuous(breaks = scales::pretty_breaks(3L)) &
@@ -530,15 +530,14 @@ oncoplot <- ggoncoplot(
     ) -
     # we apply the scale mapping to
     # - the top and right annotation: `position = "tr"`
-    # - the main plot: `main = TRUE`
-    with_quad(
+    # - the main plot: `position = "i"`
+    quad_scope(
         scale_fill_brewer(
             "Mutations",
             palette = "Dark2",
             na.translate = FALSE, drop = FALSE
         ),
-        position = "tr",
-        main = TRUE
+        position = "tri"
     ) +
 
     # add bottom annotation ----------------------------
@@ -552,7 +551,7 @@ oncoplot <- ggoncoplot(
     ylab("Ti/Tv") +
     scale_y_continuous(breaks = scales::breaks_pretty(3L)) +
     scale_fill_brewer("Ti/Tv", palette = "Set2", na.translate = FALSE) -
-    with_quad(
+    quad_scope(
         theme(
             axis.text.y = element_text(size = 18),
             axis.title.y = element_text(size = 20, face = "bold"),
