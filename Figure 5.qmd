@@ -16,7 +16,7 @@ library(forcats)
 ## Figure A
 Data was downloaded from
 https://www.cell.com/cancer-cell/fulltext/S1535-6108(18)30111-9?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1and
-provided in this repository under the Figure5 folder.
+provided in this repository under the `Figure5` folder.
 
 Here, we calculate the mean arm-level copy number variations (CNVs):
 ```{r}
@@ -122,8 +122,8 @@ ggsave("output/Figure5/A.pdf",
 ```
 
 ## Figure B
-The processed data used in this figure were prepared using the script `Figure
-5B-data-preprocess.qmd` file. The resulting preprocessed files are stored in the
+The processed data used in this figure were prepared using the script 
+`Figure 5B-data-preprocess.qmd` file. The resulting preprocessed files are stored in the
 `Figure5/` directory.
 ```{r}
 etio_enrich_primary <- readRDS("Figure5/etio_enrich_primary.rds")
@@ -508,3 +508,160 @@ ggsave("output/Figure5/C.pdf",
 ```
 
 # Figure D
+The data were obtained from TCGA and are included in this repository under
+`Figure5` for convenience. Here, we perform Cox regression analysis for all
+tumors.
+```{r}
+library(data.table)
+maf_files <- fs::dir_ls("Figure5", regexp = "snv_maf\\.rds$", recurse = TRUE)
+clidata <- readxl::read_xlsx("Figure5/TCGA-CDR-SupplementalTableS1.xlsx")
+
+pathway_all <- lapply(maf_files, function(file) {
+    maf <- maftools::read.maf(readRDS(file))
+    fortify_matrix(tune(maf))
+})
+names(pathway_all) <- sub("_snv_maf\\.rds", "", basename(maf_files))
+rownames(pathway_all[[2L]])
+
+# Perform Cox proportional hazards survival analysis per cancer type based on
+# genome integrity mutations
+genome_integrity_os <- lapply(pathway_all, function(pathway) {
+    group <- !is.na(pathway["Genome integrity", , drop = TRUE])
+    data <- dplyr::filter(
+        clidata,
+        bcr_patient_barcode %in% substr(names(group), 1L, 12)
+    )
+    data$Genome_integrity <- dplyr::if_else(
+        data$bcr_patient_barcode %in% substr(names(group)[group], 1L, 12),
+        "Alt", "Wild"
+    )
+    data$Genome_integrity <- factor(data$Genome_integrity, c("Wild", "Alt"))
+    out <- survival::coxph(
+        survival::Surv(OS.time, OS) ~ Genome_integrity,
+        data = data
+    )
+    out <- broom::tidy(out, conf.int = TRUE)
+    out$Genome_integrity <- sum(data$Genome_integrity == "Alt")
+    out$Wild <- sum(data$Genome_integrity == "Wild")
+    out
+})
+# Combine results into a single data frame with project identifiers
+forest_data <- dplyr::bind_rows(genome_integrity_os, .id = "project")
+dplyr::filter(forest_data, p.value < 0.05)
+```
+
+Overall survival analysis aligned with genome instability metrics across tumor
+types.
+```{r}
+p4 <- stack_alignh(rep(forest_data$project, each = 2L)) -
+    scheme_theme(
+        plot.margin = margin(t = 5L),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
+
+    align_order(function(x) rev(seq_len(nrow(x)))) +
+
+    ggalign(
+        vctrs::vec_interleave(forest_data$Wild, forest_data$Genome_integrity)
+    ) +
+    geom_bar(aes(value, fill = factor(.index %% 2L)),
+        stat = "identity", orientation = "y"
+    ) +
+    scale_x_reverse(name = "Number of samples") +
+    scale_fill_brewer(
+        palette = "Dark2", direction = -1L,
+        name = "Genome integrity\nStatus",
+        labels = c("Alt", "Wt")
+    ) +
+    theme(
+        legend.position = "inside",
+        legend.position.inside = c(0.6, 0.3),
+        legend.justification.inside = c(1, 1)
+    ) +
+
+    # Proejct text
+    ggalign(vctrs::vec_interleave(forest_data$project, NA), size = 0.2) +
+    geom_rect(
+        aes(
+            ymin = .index - 0.5, ymax = .index + 0.5,
+            xmin = -Inf, xmax = Inf, fill = fill
+        ),
+        data = function(d) {
+            d$fill <- factor(d$.index %% 2L)
+            d
+        }
+    ) +
+    scale_fill_manual(values = c("#F0F0F0", "white"), guide = "none") +
+    geom_text(aes(1L, label = toupper(value)), data = function(d) {
+        dplyr::filter(d, !is.na(value))
+    }) +
+    theme_no_axes("y") +
+    scale_x_continuous(breaks = NULL) +
+    xlab("Project") +
+
+    # P value
+    ggalign(vctrs::vec_interleave(NA, forest_data$p.value), size = 0.2) +
+    geom_rect(
+        aes(
+            ymin = .index - 0.5, ymax = .index + 0.5,
+            xmin = -Inf, xmax = Inf, fill = fill
+        ),
+        data = function(d) {
+            d$fill <- factor(d$.index %% 2L)
+            d
+        }
+    ) +
+    scale_fill_manual(values = c("#F0F0F0", "white"), guide = "none") +
+    geom_text(aes(1L, label = sprintf("%.2f", value)), data = function(d) {
+        dplyr::filter(d, !is.na(value))
+    }) +
+    theme_no_axes("y") +
+    scale_x_continuous(breaks = NULL) +
+    xlab("Pvalue") +
+
+    ggalign() +
+    geom_rect(
+        aes(
+            ymin = .index - 0.5, ymax = .index + 0.5,
+            xmin = -Inf, xmax = Inf, fill = fill
+        ),
+        data = function(d) {
+            d$fill <- factor(d$.index %% 2L)
+            d
+        }
+    ) +
+    scale_fill_manual(values = c("#F0F0F0", "white"), guide = "none") +
+
+    geom_point(aes(0), shape = 15L, data = function(d) {
+        dplyr::filter(d, .index %% 2L > 0L)
+    }) +
+    geom_segment(
+        aes(log2(exp(conf.low)), xend = log2(exp(conf.high))),
+        data = function(d) {
+            d <- dplyr::filter(d, .index %% 2L == 0L)
+            out <- dplyr::inner_join(
+                d, dplyr::select(forest_data, project, conf.low, conf.high),
+                by = c(value = "project")
+            )
+            dplyr::filter(out, value != "pcpg")
+        }
+    ) +
+    geom_point(aes(log2(exp(estimate))), data = function(d) {
+        d <- dplyr::filter(d, .index %% 2L == 0L)
+        out <- dplyr::inner_join(
+            d, dplyr::select(forest_data, project, estimate),
+            by = c(value = "project")
+        )
+        dplyr::filter(out, value != "pcpg")
+    }) +
+    xlab("log2(HR)") &
+    coord_cartesian(clip = "off")
+ggsave("output/Figure5/D.pdf",
+    plot = p4, width = 7, height = 7,
+    family = "Helvetica"
+)
+```
