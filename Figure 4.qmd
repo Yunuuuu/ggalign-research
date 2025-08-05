@@ -308,7 +308,6 @@ p4 <- stack_alignh(t(phylum)) -
                 size = 0.15
             ) +
                 scheme_data(function(data) {
-                    print(mean(data$.column_names %in% labels[index]))
                     dplyr::mutate(
                         data,
                         group = dplyr::if_else(
