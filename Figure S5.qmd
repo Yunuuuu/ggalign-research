@@ -6,7 +6,7 @@ library(gplots)
 library(ggalign)
 ```
 
-## A 
+## Figure A 
 ```{r setup_fn}
 bench_heatmap <- function(matrix) {
     bench::mark(
@@ -71,7 +71,7 @@ ggsave("output/FigureS5A.pdf",
 )
 ```
 
-## B
+## Figure B
 
 ```{r}
 ggalign <- cyclocomp::cyclocomp_package("ggalign")

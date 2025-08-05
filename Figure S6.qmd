@@ -1,0 +1,166 @@
+## Figure S6
+```{r}
+# Please download data from:
+# https://www.cell.com/immunity/fulltext/S1074-7613(18)30121-3?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1
+immune_subtypes <- readxl::read_xlsx(
+    "rawdata/genomic/immune_subtypes.xlsx",
+    na = c("", "NA")
+)
+nrow(immune_subtypes)
+
+immune_scores <- data.table::fread(
+    "rawdata/genomic/Scores_160_Signatures.tsv.gz"
+)
+mat <- cor(t(immune_scores[, !(1:2)]), method = "spearman")
+signatures <- immune_scores[[2L]]
+subtypes <- c(
+    "Lymphocyte", "Macrophage", "TGF-beta", "IFN-gamma",
+    "Wound Healing"
+)
+signatures[match(
+    c(
+        "LIexpression_score", "CSF1_response", "TGFB_score_21050467",
+        "Module3_IFN_score", "CHANG_CORE_SERUM_RESPONSE_UP"
+    ),
+    signatures
+)] <- subtypes
+
+rownames(mat) <- colnames(mat) <- signatures
+
+subtype_scores <- immune_subtypes %>%
+    dplyr::select(
+        all_of(c(
+            "Immune Subtype",
+            "Wound Healing", "Macrophage Regulation",
+            "Lymphocyte Infiltration Signature Score",
+            "IFN-gamma Response", "TGF-beta Response"
+        ))
+    ) %>%
+    dplyr::filter(!is.na(`Immune Subtype`))
+names(subtype_scores)[match(
+    c(
+        "Lymphocyte Infiltration Signature Score",
+        "Macrophage Regulation", "TGF-beta Response",
+        "IFN-gamma Response", "Wound Healing"
+    ),
+    names(subtype_scores)
+)] <- subtypes
+```
+
+```{r}
+p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
+    scheme_theme(
+        plot.margin = margin(),
+        axis.title = element_text(size = 10, face = "bold"),
+        axis.text = element_text(size = 10, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) -
+    scheme_align(NULL) +
+    ggheatmap() +
+
+    # we will highlight the subtypes
+    geom_vline(
+        aes(xintercept = .data$x),
+        data = function(x) {
+            x <- dplyr::filter(x, .data$.column_names %in% subtypes) %>%
+                dplyr::select(.x) %>%
+                dplyr::distinct() %>%
+                dplyr::pull(.x)
+            data.frame(x = c(x - 0.5, x + 0.5))
+        },
+        linewidth = 0.1
+    ) +
+    theme_no_axes() +
+    no_expansion() +
+    labs(fill = "Spearman\ncorrelation") +
+
+    ## add top dendrogram
+    anno_top(size = 0.1) -
+    scheme_align(free_spaces = "l") +
+    align_dendro(method = "ward.D2") +
+    no_expansion("y") +
+    theme_no_axes("y") +
+
+    ## add left dendrogram
+    anno_left() -
+    scheme_align(free_spaces = "b") +
+    align_dendro(method = "ward.D2") +
+    theme_no_axes("x") +
+    no_expansion("x") +
+
+    # step into the parent stack
+    stack_active() +
+
+    # the original author don't present the full range of the signatures for
+    # each hub signature, we just link the single signature instead
+    cross_link(
+        link_tetragon(
+            !!!lapply(subtypes, function(nm) nm ~ nm),
+            .element = element_polygon(
+                fill = RColorBrewer::brewer.pal(5L, "Set2"),
+                color = NA
+            )
+        ),
+        # the data will be used for the layout
+        data = t(subtype_scores[, 2:6]),
+        inherit_index = TRUE,
+        size = 0.1
+    ) +
+    align_group(factor(
+        names(subtype_scores)[-1L],
+        c("Wound Healing", "Lymphocyte", "Macrophage", "TGF-beta", "IFN-gamma")
+    )) +
+
+    # add second heatmap
+    ggheatmap() +
+    labs(fill = "scores") +
+    scheme_align(NULL) +
+    facet_grid(
+        labeller = labeller(.panel_y = function(x) {
+            dplyr::if_else(x == "C5", "C5  \n", x)
+        })
+    ) +
+    theme(strip.clip = "off") +
+
+    # split by immune subtypes
+    anno_left() +
+    align_group(forcats::fct_rev(subtype_scores[["Immune Subtype"]])) +
+
+    # we add bottom annotation
+    anno_bottom() -
+    scheme_align(free_spaces = "l") +
+    ggfree() +
+    scheme_align(NULL) +
+    scheme_data(function(x) {
+        dplyr::mutate(x,
+            value = scale(value, center = FALSE),
+            scaled_scores = mean(value),
+            .by = c(.panel, .extra_panel)
+        )
+    }) +
+    geom_density(aes(value, fill = scaled_scores), color = NA) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    scale_fill_gradient2("scaled\nscores", low = "blue", high = "red") +
+    facet_grid(
+        rows = vars(.extra_panel),
+        cols = vars(.panel), as.table = FALSE,
+        axes = "all_x"
+    ) +
+    theme_bw() +
+    theme_no_axes() +
+    theme(
+        strip.text.x = element_blank(),
+        strip.text.y = element_text(size = 14),
+        strip.background = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x.bottom = element_line(),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold")
+    )
+ggsave("figures/genomic/p2.pdf",
+    plot = p2, width = 7, height = 10,
+    family = "Helvetica"
+)
+```

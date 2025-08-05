@@ -375,6 +375,13 @@ expression dataset. We use the `biotidy::mockSE()` function to generate a 9x9 mo
 matrix and apply log-transformed counts (log1p). 
 
 ```{r}
+# Install 'biotidy' package from GitHub if not available
+if (requireNamespace("biotidy")) {
+    pak::pak("Yunuuuu/biotidy")
+}
+```
+
+```{r}
 set.seed(123)
 small_mat <- log1p(SummarizedExperiment::assay(biotidy::mockSE(9, 9)))
 heatmap3d <- ggheatmap(small_mat,
@@ -508,7 +515,7 @@ ggsave("output/Figure3/E.pdf",
 ```
 
 ## Figure F
-We utilize the TCGA LAML mutation dataset included in the R `maftools` package.
+We utilize the TCGA `LAML` mutation dataset included in the R `maftools` package.
 
 To reduce complexity, we randomly sample 20 tumor samples. The data preparation code
 is initially collapsed in the source but can be expanded for inspection.
