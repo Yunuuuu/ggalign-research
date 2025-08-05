@@ -510,8 +510,12 @@ ggsave("output/Figure5/C.pdf",
 # Figure D
 The data were obtained from TCGA and are included in this repository under
 `Figure5` for convenience. Here, we perform Cox regression analysis for all
-tumors.
+tumors. You may skip this step and directly load the saved results from the
+repository since the raw data is quite large.
 ```{r}
+#| code-fold: true
+#| output: false
+#| eval: false
 library(data.table)
 maf_files <- fs::dir_ls("Figure5", regexp = "snv_maf\\.rds$", recurse = TRUE)
 clidata <- readxl::read_xlsx("Figure5/TCGA-CDR-SupplementalTableS1.xlsx")
@@ -548,11 +552,13 @@ genome_integrity_os <- lapply(pathway_all, function(pathway) {
 # Combine results into a single data frame with project identifiers
 forest_data <- dplyr::bind_rows(genome_integrity_os, .id = "project")
 dplyr::filter(forest_data, p.value < 0.05)
+saveRDS(forest_data, "Figure5/forest_data.rds")
 ```
 
 Overall survival analysis aligned with genome instability metrics across tumor
 types.
 ```{r}
+forest_data <- readRDS("Figure5/forest_data.rds")
 p4 <- stack_alignh(rep(forest_data$project, each = 2L)) -
     scheme_theme(
         plot.margin = margin(t = 5L),
