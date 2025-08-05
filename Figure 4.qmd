@@ -634,7 +634,7 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
     theme_no_axes("y") +
     stack_active() +
 
-    # add differential expressed genus
+  # Link genus to phylum by tetragon polygons
     cross_link(
         link_tetragon(
             !!!purrr::imap(
@@ -654,7 +654,7 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
     ) +
     theme(plot.margin = margin()) +
 
-    #
+    # split the genus layout by phylum
     align_group(
         factor(
             genus_to_phylum$phylum,
@@ -664,6 +664,7 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
         )
     ) +
 
+    # add genus heatmap
     ggheatmap() +
     scale_fill_viridis_c(
         name = "relabund",
