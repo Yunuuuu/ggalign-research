@@ -292,9 +292,6 @@ p4 <- stack_alignh(t(phylum)) -
         } else {
             box <- ggmark(
                 mark_line(
-                    # function(panel, link) {
-                    #     browser()
-                    # },
                     !!!lapply(seq_len(11), function(i) {
                         I(i) ~ waiver()
                     }),
