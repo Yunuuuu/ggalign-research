@@ -64,8 +64,57 @@ heatmap_bench_bar <- dplyr::bind_rows(heatmap_bench) |>
     labs(x = NULL, y = "Timing (Seconds)") +
     theme_bw() +
     theme(legend.position = "inside", legend.position.inside = c(0.2, 0.5))
-ggsave("output/FigureS5.pdf",
+ggsave("output/FigureS5A.pdf",
     plot = heatmap_bench_bar, width = 9, height = 8,
     family = "Helvetica"
+)
+```
+
+
+```{r}
+ggalign <- cyclocomp::cyclocomp_package("ggalign")
+complexheatmap <- cyclocomp::cyclocomp_package("ComplexHeatmap")
+ggplot2 <- cyclocomp::cyclocomp_package("ggplot2")
+data <- list(
+    ggalign = ggalign,
+    ComplexHeatmap = complexheatmap,
+    ggplot2 = ggplot2
+)
+data <- dplyr::bind_rows(data, .id = "package")
+```
+
+
+```{r}
+FigureS5B <- data |>
+    dplyr::summarize(cyclocomp = mean(cyclocomp), .by = package) |>
+    ggplot() +
+    geom_bar(aes(package, cyclocomp, fill = package), stat = "identity") +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    xlab(NULL) +
+    ylab("Mean Cyclomatic Complexity") +
+    theme_bw()
+
+FigureS5C <- data |>
+    dplyr::summarize(cyclocomp = max(cyclocomp), .by = package) |>
+    ggplot() +
+    geom_bar(aes(package, cyclocomp, fill = package), stat = "identity") +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    xlab(NULL) +
+    ylab("Max Cyclomatic Complexity") +
+    theme_bw()
+
+FigureS5D <- data |>
+    dplyr::filter(cyclocomp >= 10) |>
+    ggplot() +
+    geom_bar(aes(package, after_stat(count), fill = package)) +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    xlab(NULL) +
+    ylab("Number of Functions with Complexity >= 10") +
+    theme_bw()
+
+ggsave(
+    "output/FigureS5B.pdf",
+    plot = ggalign::align_plots(FigureS5B, FigureS5C, FigureS5D, nrow = 1L),
+    width = 10, height = 6
 )
 ```
