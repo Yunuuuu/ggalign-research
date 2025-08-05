@@ -94,7 +94,8 @@ FigureS4 <- circle_genomic(
             position = "inside",
             theme = theme(
                 legend.position.inside = c(0.5, 0.5),
-                legend.key = element_rect(color = NA)
+                legend.key = element_rect(color = NA),
+                legend.title = element_text(face = "bold")
             )
         )
     ) +
