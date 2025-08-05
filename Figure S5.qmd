@@ -1,0 +1,69 @@
+
+```{r setup_pkgs}
+library(ComplexHeatmap)
+library(pheatmap)
+library(gplots)
+library(ggalign)
+```
+
+```{r setup_fn}
+bench_heatmap <- function(matrix) {
+    bench::mark(
+        "heatmap()" = {
+            pdf(NULL)
+            heatmap(matrix, Rowv = NA, Colv = NA)
+            dev.off()
+            NULL
+        },
+        # gplots is very very slow
+        # "gplots::heatmap.2()" = {
+        #     pdf(NULL)
+        #     heatmap.2(matrix, dendrogram = "none", trace = "none")
+        #     dev.off()
+        #     NULL
+        # },
+        "ComplexHeatmap::Heatmap()" = {
+            pdf(NULL)
+            draw(Heatmap(matrix,
+                cluster_rows = FALSE, cluster_columns = FALSE,
+                use_raster = TRUE
+            ))
+            dev.off()
+            NULL
+        },
+        "pheatmap::pheatmap()" = {
+            pdf(NULL)
+            pheatmap(matrix, cluster_rows = FALSE, cluster_cols = FALSE)
+            dev.off()
+            NULL
+        },
+        "ggalign()" = {
+            pdf(NULL)
+            print(ggheatmap(matrix, filling = "raster"))
+            dev.off()
+            NULL
+        },
+        memory = FALSE,
+        iterations = 1
+    )
+}
+
+set.seed(123)
+heatmap_bench <- lapply(c(1000, 2000, 5000, 10000), function(n) {
+    mat <- matrix(rnorm(n * n), nrow = n)
+    dplyr::mutate(bench_heatmap(mat), size = sprintf("%dx%d", n, n))
+})
+heatmap_bench_bar <- dplyr::bind_rows(heatmap_bench) |>
+    ggplot(
+        aes(forcats::fct_inorder(size), median,
+            fill = forcats::fct_inorder(as.character(expression))
+        )
+    ) +
+    geom_bar(stat = "identity", position = position_dodge()) +
+    scale_fill_brewer(palette = "Dark2", name = NULL) +
+    labs(x = NULL, y = "timing")
+ggsave("output/FigureS5.pdf",
+    plot = heatmap_bench_bar, width = 9, height = 8,
+    family = "Helvetica"
+)
+```

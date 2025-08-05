@@ -1,0 +1,128 @@
+# Genomic density and Rainfall plot
+
+Setup output directory
+```{r}
+#| code-fold: true
+if (!dir.exists("output")) dir.create("output")
+```
+
+```{r}
+load(system.file(package = "circlize", "extdata", "DMR.RData"))
+bed_data <- dplyr::bind_rows(hyper = DMR_hyper, hypo = DMR_hypo, .id = "DMR") |>
+    dplyr::relocate(DMR, .after = dplyr::last_col())
+```
+
+```{r}
+#| code-fold: true
+library(ggalign)
+```
+
+```{r}
+FigureS4 <- circle_genomic(
+    "hg19",
+    radial = coord_radial(inner.radius = 0.2, rotate.angle = TRUE),
+    direction = "inward",
+    theme = theme(
+        plot.margin = margin(t = 10, b = 10, l = 2, unit = "mm")
+    )
+) -
+    # Remove radial axes for a cleaner circular look
+    scheme_theme(
+        axis.text.r = element_blank(),
+        axis.ticks.r = element_blank()
+    ) +
+
+    # Cytoband (Ideogram) Layer ------------------
+    ggalign(size = 0.1) +
+    geom_rect(
+        aes(
+            xmin = start, xmax = end, ymin = 0, ymax = 1,
+            fill = gieStain
+        )
+    ) +
+    scale_fill_manual(
+        values = c(
+            gpos100 = rgb(0, 0, 0, maxColorValue = 255),
+            gpos = rgb(0, 0, 0, maxColorValue = 255),
+            gpos75 = rgb(130, 130, 130, maxColorValue = 255),
+            gpos66 = rgb(160, 160, 160, maxColorValue = 255),
+            gpos50 = rgb(200, 200, 200, maxColorValue = 255),
+            gpos33 = rgb(210, 210, 210, maxColorValue = 255),
+            gpos25 = rgb(200, 200, 200, maxColorValue = 255),
+            gvar = rgb(220, 220, 220, maxColorValue = 255),
+            gneg = rgb(255, 255, 255, maxColorValue = 255),
+            acen = rgb(217, 47, 39, maxColorValue = 255),
+            stalk = rgb(100, 127, 164, maxColorValue = 255)
+        ),
+        guide = "none"
+    ) +
+    scale_x_continuous(
+        breaks = scales::breaks_pretty(2),
+        labels = scales::label_bytes()
+    ) +
+    guides(
+        r = "none", r.sec = "axis",
+        theta = guide_axis_theta(angle = 0)
+    ) +
+    theme(axis.text.theta = element_text(size = 6)) +
+    scale_y_continuous(limits = c(0, 1), oob = scales::oob_keep) +
+    # Add chromosome labels
+    geom_text(aes(middle, label = seqnames, y = 2.2),
+        vjust = 0,
+        data = function(d) {
+            data <- ggalign_attr(d, "ranges")
+            data$middle <- (data$start + data$end) / 2
+            data
+        }
+    ) +
+
+    # add rainfall plot -----------------------
+    ggalign(bed_data) +
+    geom_point(
+        aes(middle, log10(dist), color = DMR),
+        data = function(d) {
+            d <- dplyr::bind_rows(!!!lapply(
+                split(d, ~DMR), function(dd) genomic_dist(dd)
+            ))
+            d$middle <- (d$start + d$end) / 2
+            dplyr::rename(d, seqnames = chr)
+        }
+    ) +
+    scale_color_brewer(
+        palette = "Dark2",
+        guide = guide_legend(
+            position = "inside",
+            theme = theme(legend.position.inside = c(0.5, 0.5))
+        )
+    ) +
+
+    # add density plot -----------------------
+    ggalign(DMR_hyper, size = 0.5) +
+    geom_density(
+        aes(middle, density, color = after_scale(fill)),
+        fill = RColorBrewer::brewer.pal(3, "Dark2")[1L],
+        stat = "identity",
+        data = function(d) {
+            d <- genomic_density(d)
+            d$middle <- (d$start + d$end) / 2
+            d
+        }
+    ) +
+    ggalign(DMR_hypo, size = 0.5) +
+    geom_density(
+        aes(middle, density, color = after_scale(fill)),
+        fill = RColorBrewer::brewer.pal(3, "Dark2")[2L],
+        stat = "identity",
+        data = function(d) {
+            d <- genomic_density(d)
+            d$middle <- (d$start + d$end) / 2
+            d
+        }
+    ) &
+    facet_sector(vars(seqnames), drop = FALSE) &
+    theme(panel.background = element_rect(color = "black", fill = NA))
+ggsave("output/FigureS4.pdf",
+    plot = FigureS4, width = 9, height = 8,
+    family = "Helvetica"
+)
+```
