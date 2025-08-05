@@ -1,4 +1,4 @@
-
+# Performance and Code Complexity Comparison
 ```{r setup_pkgs}
 library(ComplexHeatmap)
 library(pheatmap)
@@ -6,6 +6,8 @@ library(gplots)
 library(ggalign)
 ```
 
+
+## A 
 ```{r setup_fn}
 bench_heatmap <- function(matrix) {
     bench::mark(
@@ -70,6 +72,7 @@ ggsave("output/FigureS5A.pdf",
 )
 ```
 
+## B
 
 ```{r}
 ggalign <- cyclocomp::cyclocomp_package("ggalign")
