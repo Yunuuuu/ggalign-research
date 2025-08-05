@@ -9,11 +9,11 @@ can be expanded for inspection
 ```{r}
 #| code-fold: true
 #| output: false
-pathway <- readr::read_tsv("Figure S2/oncogenic_sig_patwhays.tsv")
+pathway <- readr::read_tsv("FigureS2/oncogenic_sig_patwhays.tsv")
 
-data_t <- readxl::read_excel("Figure S2/mmc2.xlsx", sheet = 5) |>
+data_t <- readxl::read_excel("FigureS2/mmc2.xlsx", sheet = 5) |>
     dplyr::filter(idx %in% pathway$Gene)
-data_p <- readxl::read_excel("Figure S2/mmc2.xlsx", sheet = 2) |>
+data_p <- readxl::read_excel("FigureS2/mmc2.xlsx", sheet = 2) |>
     dplyr::filter(idx %in% pathway$Gene)
 
 anyDuplicated(data_t$idx)
@@ -85,11 +85,26 @@ FigureS2 <- stack_crossh() +
     # add Links -----------------------------
     stack_active() +
     cross_link(
-        link_line(.element = element_line(
-            colour = rep(RColorBrewer::brewer.pal(3, "Dark2"), c(4, 3, 2))[
-                order(c(7, 4, 6, 9, 8, 3, 2, 1, 5))
-            ]
-        )),
+        .link_draw(
+            function(data) {
+                # note the data is a list of coordinates for each link
+                # we have four groups, here, we created four color
+                color <- RColorBrewer::brewer.pal(4L, "Dark2")
+                grobs <- lapply(data, function(dd) {
+                    # for each link, we map the color based on the left panel group
+                    # Since it is a factor, we'll convert it to the underlying integer 
+                    left_panel <- as.integer(as.character(
+                        dplyr::filter(dd, .hand == "left")$link_panel
+                    ))
+                    grid::linesGrob(dd$x, (dd$y + dd$yend) / 2L,
+                        gp = gpar(col = color[left_panel])
+                    )
+                })
+                rlang::inject(grid::gList(!!!grobs))
+            },
+            # we link the first one to the first one
+            !!!lapply(seq_len(20), function(i) rlang::new_formula(i, i))
+        ),
         size = 0.5
     ) +
     theme(plot.margin = margin()) +
