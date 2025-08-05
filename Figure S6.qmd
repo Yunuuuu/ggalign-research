@@ -159,7 +159,7 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
         legend.text = element_text(size = 14),
         legend.title = element_text(size = 14, face = "bold")
     )
-ggsave("figures/genomic/p2.pdf",
+ggsave("output/FigureS6.pdf",
     plot = p2, width = 7, height = 10,
     family = "Helvetica"
 )

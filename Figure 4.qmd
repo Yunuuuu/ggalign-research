@@ -268,6 +268,15 @@ Comparing the abundance of the top four phyla ("Bacteroidetes", "Firmicutes",
 "Proteobacteria", and "Fusobacteria") across all tumor types. P-value was
 adjusted in each plot panel.
 ```{r}
+#| code-fold: true
+#| output: false
+# Install 'ggstattest' package from GitHub if not available
+if (requireNamespace("ggstattest")) {
+    pak::pak("Yunuuuu/ggstattest")
+}
+```
+
+```{r}
 groups <- split(seq_len(nrow(metadata)), metadata$project)
 labels <- rownames(phylum)
 # groups <- groups[c("COAD", "READ", "ESCA", "STAD", "HNSC")]
