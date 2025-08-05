@@ -1,0 +1,510 @@
+# Pan-cancer integration of genomic alterations, pathway profiles, and clinical outcomes
+
+Setup output directory
+```{r}
+#| code-fold: true
+if (!dir.exists("output/Figure5")) dir.create("output/Figure5")
+```
+
+```{r}
+#| code-fold: true
+#| output: false
+library(ggalign)
+library(forcats)
+```
+
+## Figure A
+Data was downloaded from
+https://www.cell.com/cancer-cell/fulltext/S1535-6108(18)30111-9?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1and
+provided in this repository under the Figure5 folder.
+
+Here, we calculate the mean arm-level copy number variations (CNVs):
+```{r}
+arm_alterations <- readxl::read_xlsx(
+    "Figure5/arm_alteration.xlsx",
+    skip = 1L
+) |>
+    dplyr::summarise(
+        dplyr::across(`1p`:`22q`, ~ mean(.x, na.rm = TRUE)),
+        .by = c(Type)
+    ) |>
+    tibble::column_to_rownames("Type") |>
+    as.matrix()
+```
+
+The arm-level alterations were depicted and hierarchical clustering using the
+`ward.D2` agglomeration method grouped the tumor types into 6 distinct clusters,
+with the mean arm alterations annotated.
+```{r}
+p1 <- ggheatmap(t(arm_alterations), filling = NULL) -
+    scheme_theme(
+        plot.margin = margin(),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
+    geom_tile(aes(fill = value), width = 0.8) +
+    geom_rect(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        data = function(data) {
+            dplyr::summarise(data,
+                ymin = min(.y) - 0.5, ymax = max(.y) + 0.5,
+                .by = ".x"
+            ) |>
+                dplyr::mutate(
+                    xmin = .x - 0.4,
+                    xmax = .x + 0.4
+                )
+        },
+        color = "black", fill = NA,
+        inherit.aes = FALSE
+    ) +
+    labs(fill = "Mean\nArm Alteration") +
+    scale_x_continuous(position = "top") +
+    guides(y = primitive_labels(n.dodge = 2)) +
+    theme(
+        axis.text.x.top = element_text(
+            angle = -90, hjust = 0.5, vjust = 0.5
+        ),
+        plot.margin = margin()
+    ) +
+    anno_top(size = 0.2) +
+    align_dendro(aes(color = branch),
+        k = 6L, method = "ward.D2", distance = "spearman"
+    ) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    scale_y_continuous(breaks = scales::pretty_breaks(3L)) +
+    no_expansion("y") +
+    theme(plot.margin = margin()) +
+    anno_bottom() +
+    ggmark(
+        mark_tetragon(
+            .element = element_polygon(
+                color = RColorBrewer::brewer.pal(6L, "Dark2"),
+                fill = NA
+            )
+        ),
+        mapping = aes(.panel, .column_names),
+        group1 = TRUE, size = 1, obs_size = 0.8
+    ) +
+    scheme_data(function(data) {
+        data <- dplyr::summarise(data,
+            value = mean(value),
+            .by = c(.panel, .column_names, .column_index)
+        )
+        data$.column_names <- forcats::fct_reorder(
+            data$.column_names, data$.column_index
+        )
+        data
+    }) +
+    geom_tile(aes(fill = value), width = 0.8) +
+    scale_fill_gradient2(low = "blue", high = "red", guide = "none") +
+    no_expansion("x") +
+    ylab(NULL) +
+    theme_no_axes("x") +
+    guides(y = primitive_labels(n.dodge = 2)) +
+    theme(
+        strip.text = element_blank(),
+        strip.background = element_blank(),
+        plot.margin = margin(l = 0.1, r = 0.2, t = 0.1, unit = "npc"),
+        panel.spacing = unit(10, "mm")
+    ) +
+    facet_wrap(vars(), scales = "free_x") &
+    theme(
+        panel.background = element_blank(),
+        plot.background = element_blank()
+    )
+ggsave("output/Figure5/A.pdf",
+    plot = p1, width = 8, height = 10,
+    family = "Helvetica"
+)
+```
+
+## Figure B
+The processed data used in this figure were prepared using the script `Figure
+5B-data-preprocess.qmd` file. The resulting preprocessed files are stored in the
+`Figure5/` directory.
+```{r}
+etio_enrich_primary <- readRDS("Figure5/etio_enrich_primary.rds")
+burden <- readRDS("Figure5/burden.rds")
+```
+
+Comparison of SBSs, DBSs, and Indels mutation burdens between primary and metastatic tumors across cancer types. 
+```{r}
+p2 <- stack_alignv(data.frame(row.names = colnames(etio_enrich_primary))) -
+    scheme_theme(
+        plot.margin = margin(t = 5L),
+        axis.title = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12, colour = "black"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14, face = "bold"),
+        strip.text.y = element_text(size = 14)
+    ) +
+    align_group(factor(
+        colnames(etio_enrich_primary),
+        colnames(etio_enrich_primary)
+    )) +
+
+    # point plot for the burden
+    ggfree() +
+    scheme_data(function(data) {
+        ans <- burden[c(
+            "cancer_type", "sample_id", "group",
+            "sbs_load", "dbs_load", "indel_load"
+        )]
+        ans <- dplyr::mutate(
+            ans,
+            dplyr::across(ends_with("_load"), as.numeric)
+        )
+        ans$.panel <- data$.panel[
+            match(ans$cancer_type, sub("\\s*\\(.+\\)$", "", data$.names))
+        ]
+        tidyr::pivot_longer(
+            ans,
+            all_of(c("sbs_load", "dbs_load", "indel_load")),
+            names_to = "Mut", values_to = "burden"
+        ) |>
+            dplyr::mutate(
+                x = scales::rescale(
+                    as.integer(fct_reorder(sample_id, burden)),
+                    c(0, 1)
+                ),
+                .by = c(.panel, group, Mut)
+            ) |>
+            dplyr::mutate(
+                drawing_group = paste(group, Mut, sep = "-"),
+                drawing_group = factor(
+                    drawing_group,
+                    unique(drawing_group[order(
+                        match(Mut, c("sbs_load", "dbs_load", "indel_load")),
+                        as.integer(group)
+                    )])
+                )
+            )
+    }) +
+    geom_point(
+        aes(.data$x, .data$burden, color = drawing_group),
+        size = 1, shape = 16
+    ) +
+    geom_line(
+        aes(x = x, y = y, color = drawing_group),
+        data = function(dd) {
+            which.median <- function(x) {
+                ordering <- order(x)
+                if ((len <- length(x)) == 0L) {
+                    integer()
+                } else if (len %% 2L == 0) {
+                    ordering[len / 2L + 0:1]
+                } else {
+                    ordering[(len + 1L) / 2L]
+                }
+            }
+            dlist <- vctrs::vec_split(dd, dd[c("drawing_group", ".panel")])
+            coord <- .mapply(function(key, val) {
+                index <- which.median(.subset2(val, "burden"))
+                d <- vctrs::vec_slice(val, index)
+                x <- mean(d$x)
+                y <- mean(d$burden)
+                data.frame(x = x + c(-0.4, 0.4), y = y)
+            }, dlist, NULL)
+            vctrs::vec_cbind(
+                vctrs::vec_rep_each(
+                    .subset2(dlist, "key"),
+                    vctrs::list_sizes(coord)
+                ),
+                vctrs::vec_rbind(!!!coord)
+            )
+        }
+    ) +
+    scale_y_continuous(name = "Number of mutations", transform = "log10") +
+    scale_color_brewer(
+        name = NULL,
+        palette = "Dark2",
+        guide = guide_legend(override.aes = list(size = 5)),
+        labels = function(x) {
+            vapply(strsplit(sub("_load", "", tolower(x)), "-"),
+                function(label) {
+                    paste(
+                        switch(label[2L],
+                            sbs = "SBS",
+                            dbs = "DBS",
+                            indel = "Indel"
+                        ),
+                        label[1L]
+                    )
+                }, character(1L),
+                USE.NAMES = FALSE
+            )
+        }
+    ) +
+    theme_no_axes("x") +
+    theme(
+        strip.clip = "off",
+        strip.text.x = element_text(angle = -90, hjust = 0, size = 12),
+        strip.background = element_blank(),
+        legend.position = "bottom",
+        # panel.border = element_rect(fill = NA, colour = "black")
+        axis.line.x = element_line(),
+        strip.placement = "outside"
+    ) +
+    no_expansion("x") +
+    facet_grid(cols = vars(.panel), switch = "x")
+ggsave("output/Figure5/B.pdf",
+    plot = p2, width = 10, height = 7,
+    family = "Helvetica"
+)
+```
+
+
+## Figure C
+This figure presents an integrated visualization of pathway-level and gene-level
+mutations in the TCGA PRAD (prostate adenocarcinoma) cohort using
+oncoprint-style heatmaps. Samples are ordered based on TP53 mutation status,
+with annotations highlighting significantly enriched pathways in TP53-mutated
+patients.
+
+The data were obtained from TCGA and are included in this repository for
+convenience.
+```{r}
+mut <- readRDS("Figure5/prad_snv_maf.rds")
+maf <- maftools::read.maf(mut)
+gene_data <- fortify_matrix(maf,
+    collapse_vars = FALSE, n_top = 20L,
+    missing_genes = "remove"
+)
+pathway_data <- fortify_matrix(tune(maf))
+highlight_tp53 <- stack_crossv(
+    rlang::set_names(
+        colnames(gene_data)[!is.na(gene_data["TP53", , drop = TRUE])]
+    )
+) +
+    # add plot for TP53 data only
+    ggalign(mapping = aes(.column_names, .row_names)) +
+    scheme_data(function(d) {
+        out <- fortify_data_frame(pathway_data) |>
+            dplyr::select(!.column_index) |>
+            dplyr::filter(.data$.column_names %in% .env$d$value)
+        n <- length(unique(d$value))
+        prop <- dplyr::summarise(
+            out,
+            n = length(unique(.column_names[!is.na(value)])),
+            .by = .row_names
+        )
+        prop$prop <- prop$n / n
+        prop <- dplyr::filter(
+            prop,
+            # prop > 1/2,
+            prop > 0.1,
+            !.row_names %in% c("Other", "Other signaling")
+        ) |>
+            dplyr::arrange(.data$n)
+        out <- dplyr::filter(out, .data$.row_names %in% prop$.row_names)
+        dplyr::mutate(
+            out,
+            .row_names = factor(.row_names, rev(prop$.row_names)),
+            .column_names = fct_reorder(
+                .column_names, value,
+                function(x) sum(!is.na(x)),
+                .na_rm = FALSE, .desc = TRUE
+            )
+        )
+    }) +
+    geom_tile(fill = "grey", height = 0.95) +
+    geom_tile(
+        fill = "white",
+        width = 0.9, height = 0.9,
+        linejoin = "round", lineend = "round"
+    ) +
+    geom_tile(
+        fill = "#616060fc",
+        width = 0.9, height = 0.8,
+        linejoin = "round", lineend = "round",
+        data = function(d) dplyr::filter(d, !is.na(value))
+    ) +
+    geom_rect(
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        fill = "#616060fc",
+        linejoin = "round", lineend = "round",
+        data = function(d) {
+            out <- dplyr::filter(d, !is.na(value))
+            out$x <- as.integer(factor(out$.column_names))
+            out$y <- as.integer(out$.row_names)
+            out <- dplyr::mutate(
+                dplyr::arrange(out, x, y),
+                group = cumsum(diff(c(0, y)) != 1L),
+                .by = x
+            )
+            dplyr::summarise(
+                dplyr::filter(out, dplyr::n() > 1L, .by = c(x, group)),
+                xmin = unique(x) - 0.5, xmax = unique(x) + 0.5,
+                ymin = min(y) - 0.5, ymax = max(y) + 0.5,
+                .by = c(x, group)
+            )
+        },
+        inherit.aes = FALSE
+    ) +
+    geom_tile(aes(fill = .row_names, color = after_scale(fill)),
+        width = 0.9, height = 0.7, linewidth = 0.1,
+        linejoin = "round", lineend = "round",
+        function(d) dplyr::filter(d, !is.na(value))
+    ) +
+    ggsci::scale_fill_d3(palette = "category20", guide = "none") +
+    # scale_fill_brewer(palette = "Paired", guide = "none") +
+    theme_no_axes("x") +
+    ylab(NULL) +
+    theme(
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank()
+    ) +
+
+    # add a link
+    cross_link(
+        link_tetragon(
+            colnames(gene_data)[
+                !is.na(gene_data["TP53", , drop = TRUE])
+            ] ~ waiver(),
+            .element = element_polygon(
+                fill = "orange", color = NA, alpha = 0.8
+            )
+        ),
+        data = ggalign:::ggalign_data_restore(t(gene_data), gene_data),
+        size = 0.5, on_top = FALSE
+    ) +
+    ggplot2::expand_limits(x = c(0, 1), y = c(0, 1)) +
+
+    annotate("text",
+        x = -Inf, y = 0.5, hjust = 0,
+        label = "TP53", fontface = "bold", size = 8
+    ) +
+    theme_no_axes() +
+
+    # add plot for TMB of all mutations
+    ggalign(
+        data = function(data) {
+            data <- ggalign_attr(data, "sample_summary")
+            # matrix input will be automatically melted into a long foramted data
+            # frame in `ggalign()` function.
+            as.matrix(data[2:(ncol(data) - 1L)])
+        },
+        size = 0.8
+    ) +
+    geom_bar(aes(.x, value, fill = .column_names), stat = "identity") +
+    scale_y_log10(expand = expansion(), guide = "none") +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    ylab("TMB")
+
+gene_onco <- ggoncoplot(gene_data,
+    filling = FALSE,
+    reorder_column = FALSE,
+    reorder_row = TRUE
+) +
+    geom_subtile(aes(fill = value), ncol = 1) +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    theme_no_axes("x") +
+    # since legends from geom_tile (oncoPrint body) and `geom_bar`
+    # is different, though both looks like the same, the internal
+    # won't merge the legends. we remove the legends of oncoPrint body
+    guides(fill = "none") +
+    scale_y_continuous(position = "right") +
+
+    # add top annotation
+    anno_top(size = 0.2, initialize = FALSE) +
+    highlight_tp53 +
+    align_order2(memo_order) -
+    scheme_align(free_spaces = "l") +
+
+    # add right annotation
+    anno_right(size = 0.25) -
+    # remove bottom spaces of the right annotation when aligning
+    scheme_align(free_spaces = "b") +
+    # add the text percent for the alterated samples in the right annotation
+    ggalign(
+        data = function(data) {
+            # Atomic vector will be put in the `value` column of the data frame.
+            ggalign_attr(data, "gene_summary")$AlteredSamples /
+                ggalign_attr(data, "n_samples")
+        },
+        size = 2
+    ) +
+    geom_text(aes(1, label = scales::label_percent()(value)), hjust = 1) +
+    scale_x_continuous(
+        expand = expansion(),
+        name = NULL, breaks = NULL,
+        limits = c(0, 1)
+    ) +
+    theme(plot.margin = margin()) +
+    # add the bar plot in the right annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "gene_summary")
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:(ncol(data) - 3L)])
+    }) +
+    geom_bar(aes(value, fill = .column_names),
+        stat = "identity",
+        orientation = "y"
+    ) +
+    theme_no_axes("x") +
+    scale_fill_brewer("Mutations", palette = "Set3", na.translate = FALSE) +
+    xlab("No. of samples") +
+    # add bottom annotation
+    anno_bottom(size = 0.2) -
+    scheme_align(free_spaces = "l") +
+    # add bar plot in the bottom annotation
+    ggalign(data = function(data) {
+        data <- ggalign_attr(data, "titv")$fraction.contribution
+        # matrix input will be automatically melted into a long foramted data
+        # frame in `ggalign()` function.
+        as.matrix(data[2:7])
+    }) +
+    geom_bar(aes(y = value, fill = .column_names), stat = "identity") +
+    ylab("Ti/Tv") +
+    scale_fill_brewer("Ti/Tv", palette = "Set2") +
+    scale_y_continuous(breaks = scales::pretty_breaks(3L))
+
+p3 <- stack_crossh(pathway_data, sizes = c(0.8, 1, 0.2)) - # 0.5 1 0.2
+    scheme_theme(
+        plot.margin = margin(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        axis.title = element_text(size = 16, face = "bold"),
+        axis.text = element_text(size = 16, colour = "black"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")
+    ) +
+    # ggoncoplot(gene_data, filling = FALSE) +
+    # geom_subtile(aes(fill = value), direction = "v") +
+    # theme_no_axes("x") +
+    # stack_active() +
+    ggoncoplot(pathway_data, reorder_row = TRUE, reorder_column = FALSE) +
+    scale_fill_manual(values = "red", guide = "none", na.translate = FALSE) +
+    theme_no_axes("x") +
+    theme(axis.text.y = element_text(size = 14)) +
+    ggtitle("Pathways") +
+    scheme_align(free_spaces = "t") +
+    anno_top() +
+    align_order2(memo_order, reverse = TRUE) +
+
+    stack_active() +
+    cross_link(
+        link_line(
+            !!!pair_links(!!!purrr::imap(
+                ggalign_attr(pathway_data, "gene_list"),
+                function(gene, pathway) pathway ~ gene
+            )),
+            .handle_missing = "remove"
+        ),
+        gene_data,
+        size = 0.2
+    ) +
+    gene_onco
+
+ggsave("output/Figure5/C.pdf",
+    plot = p3, width = 15, height = 8,
+    family = "Helvetica"
+)
+```
+
+# Figure D

@@ -3,7 +3,7 @@
 Setup output directory
 ```{r}
 #| code-fold: true
-if (!dir.exists("output/Figure 4")) dir.create("output/Figure 4")
+if (!dir.exists("output/Figure4")) dir.create("output/Figure4")
 ```
 
 ```{r}
@@ -13,8 +13,10 @@ library(ggalign)
 library(mia)
 ```
 
-Data was downloaded in <https://tcma.pratt.duke.edu/>. The data preparation code
-is collapsed in the source but can be expanded for inspection.
+Microbiome taxonomic profiles and metadata were downloaded from
+<https://tcma.pratt.duke.edu/> and are also provided in this repository. Below,
+we load and preprocess the taxonomic abundance tables at the `phylum` and `genus`
+levels, filtering to primary tumor samples only.
 ```{r}
 #| code-fold: true
 #| output: false
@@ -120,7 +122,7 @@ p1 <- stack_alignv(phylum) -
         strip.background = element_blank(),
         strip.text = element_blank()
     )
-ggsave("output/Figure 4/A.pdf",
+ggsave("output/Figure4/A.pdf",
     plot = p1, width = 8, height = 7,
     family = "Helvetica"
 )
@@ -178,7 +180,7 @@ p2 <- stack_crossv(obs_phylum) -
             )
         }
     )
-ggsave("output/Figure 4/B.pdf",
+ggsave("output/Figure4/B.pdf",
     plot = p2, width = 7, height = 7,
     family = "Helvetica"
 )
@@ -253,7 +255,7 @@ p3 <- ggside(
     theme_no_axes("xy") -
     guides(fill = "none") &
     scale_fill_brewer(palette = "Dark2", name = NULL)
-ggsave("output/Figure 4/C.pdf",
+ggsave("output/Figure4/C.pdf",
     plot = p3,
     width = 7, height = 7,
     family = "Helvetica"
@@ -354,7 +356,7 @@ p4 <- stack_alignh(t(phylum)) -
     ), NULL) +
     align_dendro(aes(color = branch), size = 0.1, k = 3L) +
     scale_color_brewer(palette = "Dark2")
-ggsave("output/Figure 4/D.pdf",
+ggsave("output/Figure4/D.pdf",
     plot = p4,
     width = 11, height = 5,
     family = "Helvetica"
@@ -462,7 +464,7 @@ p5 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) -
         axis.ticks.x = element_blank()
     )
 
-ggsave("output/Figure 4/E.pdf",
+ggsave("output/Figure4/E.pdf",
     plot = p5, width = 11, height = 7,
     family = "Helvetica"
 )
@@ -688,7 +690,7 @@ p6 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
     no_expansion("y") +
     theme_no_axes("y")
 
-ggsave("output/Figure 4/F.pdf",
+ggsave("output/Figure4/F.pdf",
     plot = p6, width = 11, height = 7,
     family = "Helvetica"
 )

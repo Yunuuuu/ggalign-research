@@ -3,7 +3,7 @@
 Setup output directory
 ```{r}
 #| code-fold: true
-if (!dir.exists("output/Figure 3")) dir.create("output/Figure 3")
+if (!dir.exists("output/Figure3")) dir.create("output/Figure3")
 ```
 
 ```{r}
@@ -95,7 +95,7 @@ circle_splitted <- circle_discrete(logFC,
         legend.text = element_text(size = 12),
         legend.title = element_text(face = "bold", size = 14)
     )
-ggsave("output/Figure 3/A.pdf",
+ggsave("output/Figure3/A.pdf",
     plot = circle_splitted, width = 9, height = 8,
     family = "Helvetica"
 )
@@ -246,7 +246,7 @@ circle <- circle_discrete(trda,
         panel.background = element_blank(),
         text = element_text(family = "Helvetica")
     )
-ggsave("output/Figure 3/B.pdf",
+ggsave("output/Figure3/B.pdf",
     plot = circle, width = 8.5, height = 7,
     family = "Helvetica"
 )
@@ -294,7 +294,7 @@ side_plot <- ggside(i2, aes(Sepal.Width, Sepal.Length, color = Species)) +
         axis.text = element_text(size = 20),
         axis.title = element_text(size = 20, face = "bold")
     )
-ggsave("output/Figure 3/C.pdf",
+ggsave("output/Figure3/C.pdf",
     plot = side_plot, width = 8, height = 8,
     family = "Helvetica"
 )
@@ -366,7 +366,7 @@ upset <- ggupset(tune(upset_data),
         axis.text.x = element_text(size = 16)
     ) &
     theme(plot.background = element_blank())
-ggsave("output/Figure 3/D.pdf", plot = upset, width = 8, height = 4)
+ggsave("output/Figure3/D.pdf", plot = upset, width = 8, height = 4)
 ```
 
 ## Figure E
@@ -502,7 +502,7 @@ heatmap3d <- ggheatmap(small_mat,
         plot.background = element_blank(),
         panel.background = element_blank()
     )
-ggsave("output/Figure 3/E.pdf",
+ggsave("output/Figure3/E.pdf",
     plot = heatmap3d, width = 7, height = 6.5, family = "Helvetica"
 )
 ```
@@ -643,7 +643,7 @@ oncoplot <- ggoncoplot(
         plot.background = element_blank()
     )
 ggsave(
-    "output/Figure 3/F.pdf",
+    "output/Figure3/F.pdf",
     plot = oncoplot, family = "Helvetica",
     width = 9, height = 6
 )
@@ -726,7 +726,7 @@ link_observations <- stack_crossh() +
     ) &
     scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave(
-    "output/Figure 3/G.pdf",
+    "output/Figure3/G.pdf",
     plot = link_observations, family = "Helvetica",
     width = 9, height = 6
 )
@@ -842,7 +842,7 @@ annotate_observations <- stack_crossh(expr1) -
     theme_no_axes("x") &
     scale_color_brewer(palette = "Dark2", guide = "none")
 ggsave(
-    "output/Figure 3/H.pdf",
+    "output/Figure3/H.pdf",
     plot = annotate_observations, family = "Helvetica",
     width = 9, height = 6
 )

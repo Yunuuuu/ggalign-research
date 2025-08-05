@@ -6,7 +6,6 @@ library(gplots)
 library(ggalign)
 ```
 
-
 ## A 
 ```{r setup_fn}
 bench_heatmap <- function(matrix) {
@@ -88,7 +87,7 @@ data <- dplyr::bind_rows(data, .id = "package")
 
 
 ```{r}
-FigureS5B <- data |>
+FigureS5B1 <- data |>
     dplyr::summarize(cyclocomp = mean(cyclocomp), .by = package) |>
     ggplot() +
     geom_bar(aes(package, cyclocomp, fill = package), stat = "identity") +
@@ -97,7 +96,7 @@ FigureS5B <- data |>
     ylab("Mean Cyclomatic Complexity") +
     theme_bw()
 
-FigureS5C <- data |>
+FigureS5B2 <- data |>
     dplyr::summarize(cyclocomp = max(cyclocomp), .by = package) |>
     ggplot() +
     geom_bar(aes(package, cyclocomp, fill = package), stat = "identity") +
@@ -106,7 +105,7 @@ FigureS5C <- data |>
     ylab("Max Cyclomatic Complexity") +
     theme_bw()
 
-FigureS5D <- data |>
+FigureS5B3 <- data |>
     dplyr::filter(cyclocomp >= 10) |>
     ggplot() +
     geom_bar(aes(package, after_stat(count), fill = package)) +
@@ -117,7 +116,7 @@ FigureS5D <- data |>
 
 ggsave(
     "output/FigureS5B.pdf",
-    plot = ggalign::align_plots(FigureS5B, FigureS5C, FigureS5D, nrow = 1L),
+    plot = ggalign::align_plots(FigureS5B1, FigureS5B2, FigureS5B3, nrow = 1L),
     width = 10, height = 6
 )
 ```

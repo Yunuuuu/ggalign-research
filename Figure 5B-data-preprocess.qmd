@@ -1,0 +1,280 @@
+# Data preprocess of Figure 5B
+The dataset used in Figure 5B was obtained from the supplementary materials of
+the publication: https://www.nature.com/articles/s41586-023-06054-z#Sec38, For
+convenience, the data files are also included within this repository.
+
+The preprocessing scripts are adapted and modified from the following original sources:
+https://github.com/UMCUGenetics/primary-met-wgs-comparison/blob/master/overview_figure/source_script.R
+https://github.com/UMCUGenetics/primary-met-wgs-comparison/blob/master/overview_figure/04_biopsy_location_panel/biopsy_loc.R
+
+
+```{r}
+data <- readxl::read_xlsx("Figure5/mut_load.xlsx")
+burden_compare <- readxl::read_xlsx(
+    "Figure5/sig_contribs.xlsx",
+    sheet = "smnv_burden_enrichment",
+    skip = 1L
+)
+etio_enrich <- readxl::read_xlsx(
+    "Figure5/sig_contribs.xlsx",
+    sheet = "etio_enr.cancer_stage", skip = 1L
+)
+cancer_type_order_fig1 <- c(
+    "Pan-cancer", "Glioblastoma multiforme",
+    "Upper respiratory tract carcinoma", "Thyroid carcinoma",
+    "Lung adenocarcinoma", "Lung squamous cell carcinoma",
+    "Diffuse large B-cell lymphoma", "Breast carcinoma",
+    "Cholangiocarcinoma", "Hepatocellular carcinoma", "Pancreas carcinoma",
+    "Pancreas neuroendocrine", "Colorectal carcinoma",
+    "Esophageal carcinoma", "Stomach carcinoma",
+    "Kidney renal clear cell carcinoma", "Cervical carcinoma", "Ovarian serous adenocarcinoma", "Uterus carcinoma",
+    "Bladder urothelial carcinoma", "Prostate carcinoma", "Leiomyosarcoma", "Liposarcoma", "Skin melanoma"
+)
+```
+
+summarize the biopsy data by binning it into 4 groups: local, lymph, distant,
+and unknown based on the specific sites annotated in the clinical data
+```{r}
+data$simplified_biopsiy_site <- NA
+data$biopsySite <- data$biopsy_site
+for (i in 2:24) {
+    cc_type <- cancer_type_order_fig1[i]
+
+    if (i == 2) {
+        data$simplified_biopsiy_site[
+            data$cancer_type == cc_type & data$biopsySite != "ovarium"
+        ] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "ovarium"] <- "Distant"
+    }
+
+    if (i == 3) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Primary"] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+
+    if (i == 4) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 5) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Lung")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 6) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Lung")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 7) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 8) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Breast")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 9) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Primary"] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("null", "other")] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 10) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Liver")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 11) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "pancreas")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 12) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 13) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Colorectum"] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Unknown", "Other site")] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 14) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "oesophagus")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 15) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "stomach", "Stomach")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 16) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Kidney")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 17) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "cervix")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 18) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "Ovarium CA", "ovary")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 19) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 20) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("null", "unknown")] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 21) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite %in% c("Primary", "prostate")] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 22) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 23) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "null"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+
+    if (i == 24) {
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Skin/Subcutaneous"] <- "Local"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Unknown"] <- "Unknown"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & data$biopsySite == "Lymph node"] <- "Lymph"
+        data$simplified_biopsiy_site[data$cancer_type == cc_type & is.na(data$simplified_biopsiy_site)] <- "Distant"
+    }
+}
+
+burden <- data |>
+    dplyr::filter(!is.na(simplified_biopsiy_site)) |>
+    dplyr::filter(!is_blacklisted) |>
+    dplyr::mutate(
+        group = dplyr::if_else(
+            !is.na(metastatic_location) & metastatic_location == "Primary",
+            "Primary", "Metastatic"
+        ),
+        group = factor(group, c("Primary", "Metastatic"))
+    )
+
+etio_enrich_metastatic <- etio_enrich |>
+    dplyr::filter(
+        mut_type %in% "SBS",
+        sig_group %in% c(
+            "SBS5/40 | Age",
+            "SBS1 | Age, 5mC deamination",
+            "SBS2/13 | APOBEC",
+            "SBS12/16 | Liver associated",
+            "SBS6/15/21/26/44 | MMRd",
+            "SBS31/35 | Platinum treatment",
+            "SBS17a/17b | ROS, 5FU treatment",
+            "SBS18/36 | ROS, ROS repair deficiency",
+            "SBS33 | Unknow"
+        )
+    ) |>
+    tidyr::pivot_wider(
+        id_cols = sig_group,
+        names_from = cancer_type,
+        values_from = median_metastatic
+    ) |>
+    tibble::column_to_rownames(var = "sig_group") |>
+    as.matrix()
+etio_enrich_primary <- etio_enrich |>
+    dplyr::filter(
+        mut_type %in% "SBS",
+        sig_group %in% c(
+            "SBS5/40 | Age",
+            "SBS1 | Age, 5mC deamination",
+            "SBS2/13 | APOBEC",
+            "SBS12/16 | Liver associated",
+            "SBS6/15/21/26/44 | MMRd",
+            "SBS31/35 | Platinum treatment",
+            "SBS17a/17b | ROS, 5FU treatment",
+            "SBS18/36 | ROS, ROS repair deficiency",
+            "SBS33 | Unknow"
+        )
+    ) |>
+    tidyr::pivot_wider(
+        id_cols = sig_group,
+        names_from = cancer_type,
+        values_from = median_primary
+    ) |>
+    tibble::column_to_rownames(var = "sig_group") |>
+    as.matrix()
+etio_enrich_difference <- etio_enrich |>
+    dplyr::filter(
+        mut_type %in% "SBS",
+        sig_group %in% c(
+            "SBS5/40 | Age",
+            "SBS1 | Age, 5mC deamination",
+            "SBS2/13 | APOBEC",
+            "SBS12/16 | Liver associated",
+            "SBS6/15/21/26/44 | MMRd",
+            "SBS31/35 | Platinum treatment",
+            "SBS17a/17b | ROS, 5FU treatment",
+            "SBS18/36 | ROS, ROS repair deficiency",
+            "SBS33 | Unknow"
+        )
+    ) |>
+    tidyr::pivot_wider(
+        id_cols = sig_group,
+        names_from = cancer_type,
+        values_from = median_diff
+    ) |>
+    tibble::column_to_rownames(var = "sig_group") |>
+    as.matrix()
+all(rownames(etio_enrich_primary) == rownames(etio_enrich_metastatic))
+all(colnames(etio_enrich_primary) == colnames(etio_enrich_metastatic))
+
+saveRDS(burden, "Figure5/burden.rds")
+saveRDS(etio_enrich_primary, "Figure5/etio_enrich_primary.rds")
+saveRDS(etio_enrich_metastatic, "Figure5/etio_enrich_metastatic.rds")
+```
