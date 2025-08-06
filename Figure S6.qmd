@@ -55,6 +55,7 @@ names(subtype_scores)[match(
 )] <- subtypes
 ```
 
+## Correlation Heatmap with Aligned Immune Subtype Scores
 Five representative gene expression signatures (linked with colored polygons)
 were used to cluster TCGA tumor samples (rows), resulting in the identification
 of six immune subtypes, labeled C1– C6. The distribution of signature scores
