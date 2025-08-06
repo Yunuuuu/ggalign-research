@@ -1,10 +1,20 @@
 # ggalign: Bridging the Grammar of Graphics and Biological Multilayered Complexity
 
 This repository provides all the code and data used to generate the figures in
-the manuscript` ggalign: Bridging the Grammar of Graphics and Biological Multilayered Complexity`. Each figure is supported by a dedicated Quarto (.qmd)
-file and an associated data folder to ensure full transparency and
+the manuscript` ggalign: Bridging the Grammar of Graphics and Biological
+Multilayered Complexity`. Each figure is supported by a dedicated Quarto
+(`.qmd`) file and an associated data folder to ensure full transparency and
 reproducibility.
 
+All output files can be found in the `output/` directory.
+
+> **Note:** The originally uploaded `Figure S2.pdf` was incorrect and cannot be
+> replaced during peer review.  
+> Below we display the **correct version** of `Figure S2` for reviewer reference.  
+> This updated figure accurately reflects the results described in the
+> manuscript and will be uploaded to the official record when possible.
+
+![Figure S2](output/FigureS2.png)
 
 ## Script Structure
 All scripts have been organized and renamed to match their corresponding figure
