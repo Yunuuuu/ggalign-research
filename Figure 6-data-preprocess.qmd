@@ -1,16 +1,34 @@
-# # Data preprocess of Figure 6
+# Data preprocess of Figure 6
+
+Install 'scend' package from GitHub if not already installed 'scend' is a
+wrapper around the `scrapper` package, providing a unified interface for both
+`Seurat` and `SingleCellExperiment` objects.
+```{r}
+if (!requireNamespace("scend")) {
+    pak::pak("Yunuuuu/scend")
+}
+```
 
 ```{r}
 library(SingleCellExperiment)
+```
 
-# read data -------------------------------------------------
-# Please download data from:
-# https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE210347
+Data was downloaded from
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE210347, Please download at
+least the file `GSE210347_counts.Rds`. Other required files are included in the
+Figure6 folder of this repository. Note: Due to file size constraints,
+`GSE210347_counts.Rds` could not be uploaded. However, you may skip the download
+step as the processed object is already provided.
+
+```{r}
 data <- readRDS("Figure6/GSE210347_counts.Rds")
 metadata <- data.table::fread("Figure6/GSE210347_meta.txt.gz")
 sample_data <- data.table::fread("Figure6/GSE210347_sample_information.txt.gz")
 study <- readxl::read_xls("Figure6/GSE210347_study_metadata.xls")
+```
 
+Batch correction
+```{r}
 all(metadata$cellname == colnames(data))
 sce_obj <- SingleCellExperiment::SingleCellExperiment(
     list(counts = data),
@@ -36,16 +54,25 @@ set.seed(1234L)
 sce_obj <- scend::quickMNN(
     sce_obj,
     block = sce_obj$SampleID,
-    d = 50L,
+    n_dim = 50L,
     subset_row = SingleCellExperiment::rowSubset(sce_obj)
 )
+# Clean up MNN artifacts
 SummarizedExperiment::assay(sce_obj, "multiBatchNorm") <- NULL
+```
 
-# UMAP
+Run UMAP:
+```{r}
 set.seed(1234L)
 sce_obj <- scend::runUMAP(sce_obj, dimred = "corrected", min_dist = 0.3)
-qs::qsave(sce_obj, "munging/sce_obj.qs")
+umap <- data.frame(reducedDim(sce_obj, "UMAP"))
+umap <- setNames(umap, c("umap1", "umap2"))
+umap$celltype <- sce_obj$celltype
+saveRDS(umap, "Figure6/umap.rds")
+```
 
+Generate Subset UMAPs by Cell Type:
+```{r}
 marker_list <- list(
     Epithelium = c("EPCAM", "KRT19"),
     Lymphocyte = c("CD3D", "CD3E"),
@@ -69,5 +96,33 @@ umap_subset <- lapply(sort(names(marker_list)), function(x) {
     umap
 })
 names(umap_subset) <- sort(names(marker_list))
-qs::qsave(umap_subset, "munging/umap_subset.qs")
+umap_subset <- dplyr::bind_rows(umap_subset)
+umap_subset$tissue <- sce_obj$tissue[umap_subset$.index]
+qs::qsave(umap_subset, "Figure6/umap_subset.qs")
+```
+
+```{r}
+summarized <- scuttle::summarizeAssayByGroup(
+    assay(sce_obj, "logcounts")[unlist(marker_list, FALSE, FALSE), ],
+    ids = DataFrame(cluster = sce_obj$cluster, celltype = sce_obj$celltype),
+    statistics = c("mean", "prop.detected"),
+    threshold = 0
+)
+ave <- t(assay(summarized, "mean"))
+num <- t(assay(summarized, "prop.detected"))
+rownames(ave) <- summarized$cluster
+rownames(num) <- summarized$cluster
+saveRDS(
+    list(
+        ave = ave, num = num,
+        row_grp = summarized$celltype,
+        column_grp = rep(names(marker_list), times = lengths(marker_list))
+    ),
+    "Figure6/summarized.rds"
+)
+```
+
+```{r}
+clidata <- data.frame(colData(sce_obj))
+saveRDS(clidata, "Figure6/clidata.rds")
 ```
