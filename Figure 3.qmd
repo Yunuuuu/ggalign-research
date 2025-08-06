@@ -702,7 +702,8 @@ link_observations <- stack_crossh() +
                 # we have three groups, here, we created three color
                 color <- RColorBrewer::brewer.pal(3L, "Dark2")
                 grobs <- lapply(data, function(dd) {
-                    # for each link, we map the color based on the left panel group (hand1)
+                    # for each link, there are two data frame for each hand
+                    # we map the color based on the left panel group (hand1)
                     grid::linesGrob(
                         c(dd$hand1$x, dd$hand2$x),
                         (c(dd$hand1$y, dd$hand2$y) +
