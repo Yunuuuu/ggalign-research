@@ -6,10 +6,12 @@ Multilayered Complexity`. Each figure is supported by a dedicated Quarto
 (`.qmd`) file and an associated data folder to ensure full transparency and
 reproducibility.
 
-All output files can be found in the `output/` directory.
+All output files can be found in the `output/` directory. 
 
-> **Note:** The originally uploaded `Figure S2.pdf` was incorrect and cannot be
-> replaced during peer review.  
+The repository structure is illustrated in the figure below:
+
+> ⚠️ ⚠️ ⚠️ ⚠️ The originally uploaded `Figure S2.pdf` was incorrect and cannot be
+> replaced during peer review.
 > Below we display the **correct version** of `Figure S2` for reviewer reference.  
 > This updated figure accurately reflects the results described in the
 > manuscript and will be uploaded to the official record when possible.
