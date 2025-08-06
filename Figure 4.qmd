@@ -9,6 +9,15 @@ if (!dir.exists("output/Figure4")) dir.create("output/Figure4")
 ```{r}
 #| code-fold: true
 #| output: false
+# Install 'ggstattest' package from GitHub if not available
+if (!requireNamespace("ggstattest")) {
+    pak::pak("Yunuuuu/ggstattest")
+}
+```
+
+```{r}
+#| code-fold: true
+#| output: false
 library(ggalign)
 library(mia)
 ```
@@ -260,27 +269,13 @@ ggsave("output/Figure4/C.pdf",
     width = 7, height = 7,
     family = "Helvetica"
 )
-
 ```
 
 # Figure D
-Comparing the abundance of the top four phyla ("Bacteroidetes", "Firmicutes",
-"Proteobacteria", and "Fusobacteria") across all tumor types. P-value was
-adjusted in each plot panel.
-```{r}
-#| code-fold: true
-#| output: false
-# Install 'ggstattest' package from GitHub if not available
-if (!requireNamespace("ggstattest")) {
-    pak::pak("Yunuuuu/ggstattest")
-}
-```
+Differential phyla and corresponding differential genera between COAD (colon adenocarcinoma) and STAD (stomach adenocarcinoma) are highlighted. P-value was adjusted across all taxa.
 
 ```{r}
-groups <- split(seq_len(nrow(metadata)), metadata$project)
-labels <- rownames(phylum)
-# groups <- groups[c("COAD", "READ", "ESCA", "STAD", "HNSC")]
-p4 <- stack_alignh(t(phylum)) -
+p4 <- stack_discreteh(t(phylum), sizes = c(0.1, 1, 1)) -
     # set default theme
     scheme_theme(
         plot.margin = margin(),
@@ -291,83 +286,93 @@ p4 <- stack_alignh(t(phylum)) -
         legend.text = element_text(size = 16),
         legend.title = element_text(size = 16, face = "bold")
     ) +
-    align_dendro(aes(color = branch), size = 0.1, k = 3L) +
-    scale_x_reverse() +
-    scale_color_brewer(palette = "Dark2") +
-    .mapply(function(index, project, next_index, next_project, size) {
-        force(index)
-        force(next_index)
-        force(next_project)
-        if (is.na(next_project)) {
-            box <- NULL
-        } else {
-            box <- ggmark(
-                mark_line(
-                    !!!lapply(seq_len(11), function(i) {
-                        I(i) ~ waiver()
-                    }),
-                    .element = element_line(
-                        colour = RColorBrewer::brewer.pal(3L, "Dark2")[
-                            seq_len(2)
-                        ]
-                    )
-                ),
-                ~ .x[, c(index, next_index)],
-                size = 0.15
-            ) +
-                scheme_data(function(data) {
-                    dplyr::mutate(
-                        data,
-                        group = dplyr::if_else(
-                            .column_names %in% labels[index],
-                            project, next_project
-                        ),
-                        group = factor(group, c(project, next_project))
-                    )
-                }) +
-                geom_boxplot(aes(group, value, fill = group),
-                    outlier.size = 0.2,
-                    linewidth = 0.1
-                ) +
-                ggstattest::geom_comparetest(aes(group, value),
-                    vjust = 1, size = 7, label_colour = "red"
-                ) +
-                scale_y_continuous(expand = expansion(mult = 0.3)) +
-                theme_no_axes("xy") +
-                theme(
-                    strip.background = element_blank(),
-                    strip.text = element_blank(),
-                    plot.margin = margin(l = 0.1, r = 0.1, unit = "npc")
-                ) +
-                xlab(NULL) +
-                scale_fill_brewer(palette = "Dark2", guide = "none") +
-                facet_wrap(vars(), scales = "free")
-        }
-        list(
-            ggheatmap(~ .x[, index], width = size) +
-                theme_no_axes(if (project == "COAD") "x" else "xy") +
-                scale_fill_viridis_c(
-                    name = "relabund", option = "A", limits = c(0, 1)
-                ) +
-                theme(
-                    plot.margin = margin(),
-                    plot.title = element_text(face = "bold", hjust = 0.5)
-                ) +
-                ggtitle(project),
-            stack_active(),
-            box
+    # add heatmap
+    ggheatmap(theme = theme(panel.spacing.x = unit(1, "mm"))) +
+    scale_fill_viridis_c(
+        name = "relabund",
+        option = "plasma",
+        limits = c(0, 1),
+        breaks = scales::pretty_breaks(3L)
+    ) +
+    theme_no_axes("x") +
+    theme(axis.text.y = element_text(colour = "black")) +
+
+    anno_left(size = 0.2) +
+    align_dendro() +
+    scale_x_continuous(breaks = scales::pretty_breaks(3L)) +
+
+    anno_top() +
+    align_group(metadata$project) +
+
+    # a new dendrogram
+    align_dendro(aes(color = branch),
+        reorder_dendrogram = TRUE,
+        merge_dendrogram = TRUE
+    ) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    scale_y_continuous(expand = expansion(), guide = "none") +
+    no_expansion("y") +
+
+    # add boxplot to annotate observations
+    stack_active() -
+    scheme_data(function(data) {
+        dplyr::mutate(data,
+            project = metadata$project[match(.column_names, metadata$V1)]
         )
-    }, list(
-        groups, names(groups),
-        groups[c(names(groups)[2:length(groups)], NA)],
-        c(names(groups)[2:length(groups)], NA),
-        lengths(groups) / sum(lengths(groups))
-    ), NULL) +
-    align_dendro(aes(color = branch), size = 0.1, k = 3L) +
-    scale_color_brewer(palette = "Dark2")
+    }) +
+    ggmark(
+        mark_tetragon(
+            !!!lapply(seq_len(4), function(i) {
+                I(i) ~ waiver()
+            }),
+            .element = element_vec_rep_each(
+                element_polygon(
+                    fill = RColorBrewer::brewer.pal(4, "Set3"),
+                    color = NA
+                ),
+                2L
+            )
+        )
+    ) +
+    geom_boxplot(aes(value, project, fill = project), orientation = "y") +
+    ggstattest::geom_comparetest(aes(value, project),
+        vjust = 0.5, size = 7, label_colour = "black",
+        step_increase = 0.25,
+        height = 0.5,
+        tip_length = 0.05,
+        p.adjust = "BH"
+    ) +
+    scale_fill_brewer(palette = "Dark2", guide = "none") +
+    scale_x_continuous(expand = expansion(add = c(0, 0.2), mult = c(0.05, 0))) +
+    facet_grid(scales = "free_x") +
+    xlab(NULL) +
+    theme_no_axes("y") +
+    theme(
+        strip.text = element_blank(),
+        strip.text.y.right = element_blank(),
+        strip.background = element_blank(),
+        # axis.text.x = element_text(angle = -60, hjust = 0),
+        panel.spacing.y = unit(3, "mm")
+    ) +
+    theme(plot.margin = margin(l = 0.1, r = 0.1, unit = "npc")) +
+
+    # add barplot
+    ggalign(size = 0.5) +
+    geom_bar(aes(value, fill = project),
+        orientation = "y", stat = "identity",
+        width = 1, position = "fill"
+    ) +
+    scale_fill_brewer(name = "Project", palette = "Dark2") +
+    xlab(NULL) +
+    no_expansion("x") +
+    theme(
+        panel.border = element_rect(fill = NA),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+    )
+
 ggsave("output/Figure4/D.pdf",
-    plot = p4,
-    width = 11, height = 5,
+    plot = p4, width = 11, height = 7,
     family = "Helvetica"
 )
 ```
