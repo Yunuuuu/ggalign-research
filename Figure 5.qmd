@@ -15,7 +15,7 @@ library(forcats)
 
 ## Figure A
 Data was downloaded from
-https://www.cell.com/cancer-cell/fulltext/S1535-6108(18)30111-9?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1and
+https://www.cell.com/cancer-cell/fulltext/S1535-6108(18)30111-9?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1 and
 provided in this repository under the `Figure5` folder.
 
 Here, we calculate the mean arm-level copy number variations (CNVs):

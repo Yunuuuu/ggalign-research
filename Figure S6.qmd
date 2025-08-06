@@ -1,15 +1,23 @@
-## Figure S6
+# Pan-cancer expression signature modules and immune subtype identification
+
+```{r setup_pkgs}
+library(ggalign)
+```
+
+Data was downloaded from
+https://www.cell.com/immunity/fulltext/S1074-7613(18)30121-3?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1 and
+provided in this repository under the `FigureS6` folder.
+
+## Data Loading and Preparation
 ```{r}
-# Please download data from:
-# https://www.cell.com/immunity/fulltext/S1074-7613(18)30121-3?utm_campaign=STMJ_1522958526_SC&utm_channel=WEB&utm_source=WEB&dgcid=STMJ_1522958526_SC#fig1
 immune_subtypes <- readxl::read_xlsx(
-    "rawdata/genomic/immune_subtypes.xlsx",
+    "FigureS6/immune_subtypes.xlsx",
     na = c("", "NA")
 )
 nrow(immune_subtypes)
 
 immune_scores <- data.table::fread(
-    "rawdata/genomic/Scores_160_Signatures.tsv.gz"
+    "FigureS6/Scores_160_Signatures.tsv.gz"
 )
 mat <- cor(t(immune_scores[, !(1:2)]), method = "spearman")
 signatures <- immune_scores[[2L]]
@@ -27,7 +35,7 @@ signatures[match(
 
 rownames(mat) <- colnames(mat) <- signatures
 
-subtype_scores <- immune_subtypes %>%
+subtype_scores <- immune_subtypes |>
     dplyr::select(
         all_of(c(
             "Immune Subtype",
@@ -35,7 +43,7 @@ subtype_scores <- immune_subtypes %>%
             "Lymphocyte Infiltration Signature Score",
             "IFN-gamma Response", "TGF-beta Response"
         ))
-    ) %>%
+    ) |>
     dplyr::filter(!is.na(`Immune Subtype`))
 names(subtype_scores)[match(
     c(
@@ -47,8 +55,13 @@ names(subtype_scores)[match(
 )] <- subtypes
 ```
 
+Five representative gene expression signatures (linked with colored polygons)
+were used to cluster TCGA tumor samples (rows), resulting in the identification
+of six immune subtypes, labeled C1– C6. The distribution of signature scores
+across the six subtypes is shown, with the dashed line indicating the median
+score for each subtype.
 ```{r}
-p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
+p <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
     scheme_theme(
         plot.margin = margin(),
         axis.title = element_text(size = 10, face = "bold"),
@@ -64,9 +77,9 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
     geom_vline(
         aes(xintercept = .data$x),
         data = function(x) {
-            x <- dplyr::filter(x, .data$.column_names %in% subtypes) %>%
-                dplyr::select(.x) %>%
-                dplyr::distinct() %>%
+            x <- dplyr::filter(x, .data$.column_names %in% subtypes) |>
+                dplyr::select(.x) |>
+                dplyr::distinct() |>
                 dplyr::pull(.x)
             data.frame(x = c(x - 0.5, x + 0.5))
         },
@@ -160,7 +173,7 @@ p2 <- stack_crossv(mat, sizes = c(0.1, 1, 1)) -
         legend.title = element_text(size = 14, face = "bold")
     )
 ggsave("output/FigureS6.pdf",
-    plot = p2, width = 7, height = 10,
+    plot = p, width = 7, height = 10,
     family = "Helvetica"
 )
 ```
