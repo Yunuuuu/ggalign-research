@@ -526,7 +526,7 @@ p5 <- stack_crossh(t(phylum), sizes = c(0.1, 1, 1)) -
     ) +
     xlab(NULL) +
     scale_fill_brewer(palette = "Set1", guide = "none") +
-    facet_grid(scales = "free_y") +
+    facet_grid(scales = "free_y", space = "free_y") +
 
     # add STAD heatmap
     ggheatmap(~ .x[, metadata$project == "STAD"]) +
