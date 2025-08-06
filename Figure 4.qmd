@@ -21,10 +21,10 @@ levels, filtering to primary tumor samples only.
 #| code-fold: true
 #| output: false
 # Load taxonomy and relative abundance tables
-taxonomy <- data.table::fread("rawdata/taxonomy.txt")
-phylum <- data.table::fread("rawdata/bacteria.sample.relabund.phylum.txt")
-genus <- data.table::fread("rawdata/bacteria.sample.relabund.genus.txt")
-metadata <- data.table::fread("rawdata/sample_metadata.txt")
+taxonomy <- data.table::fread("Figure4/taxonomy.txt")
+phylum <- data.table::fread("Figure4/bacteria.sample.relabund.phylum.txt")
+genus <- data.table::fread("Figure4/bacteria.sample.relabund.genus.txt")
+metadata <- data.table::fread("Figure4/sample_metadata.txt")
 
 # Filter metadata to primary tumor samples
 table(metadata$sample_type)
