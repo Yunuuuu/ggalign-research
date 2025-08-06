@@ -91,13 +91,12 @@ FigureS2 <- stack_crossh() +
                 # we have four groups, here, we created four color
                 color <- RColorBrewer::brewer.pal(4L, "Dark2")
                 grobs <- lapply(data, function(dd) {
-                    # for each link, we map the color based on the left panel group
-                    # Since it is a factor, we'll convert it to the underlying integer 
-                    left_panel <- as.integer(as.character(
-                        dplyr::filter(dd, .hand == "left")$link_panel
-                    ))
-                    grid::linesGrob(dd$x, (dd$y + dd$yend) / 2L,
-                        gp = gpar(col = color[left_panel])
+                    # for each link, we map the color based on the left panel group (hand1)
+                    grid::linesGrob(
+                        c(dd$hand1$x, dd$hand2$x),
+                        (c(dd$hand1$y, dd$hand2$y) +
+                            c(dd$hand1$yend, dd$hand2$yend)) / 2L,
+                        gp = gpar(col = color[dd$hand1$link_panel])
                     )
                 })
                 rlang::inject(grid::gList(!!!grobs))
