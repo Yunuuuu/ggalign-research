@@ -11,6 +11,7 @@ if (!dir.exists("output/Figure5")) dir.create("output/Figure5")
 #| output: false
 library(ggalign)
 library(forcats)
+library(legendry)
 ```
 
 ## Figure A
