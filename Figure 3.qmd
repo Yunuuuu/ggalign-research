@@ -376,7 +376,7 @@ matrix and apply log-transformed counts (log1p).
 
 ```{r}
 # Install 'biotidy' package from GitHub if not available
-if (requireNamespace("biotidy")) {
+if (!requireNamespace("biotidy")) {
     pak::pak("Yunuuuu/biotidy")
 }
 ```
@@ -696,11 +696,25 @@ link_observations <- stack_crossh() +
     # add Links -----------------------------
     stack_active() +
     cross_link(
-        link_line(.element = element_line(
-            colour = rep(RColorBrewer::brewer.pal(3, "Dark2"), c(4, 3, 2))[
-                order(c(7, 4, 6, 9, 8, 3, 2, 1, 5))
-            ]
-        )),
+        .link_draw(
+            function(data) {
+                # note the data is a list of coordinates for each link
+                # we have three groups, here, we created three color
+                color <- RColorBrewer::brewer.pal(3L, "Dark2")
+                grobs <- lapply(data, function(dd) {
+                    # for each link, we map the color based on the left panel group (hand1)
+                    grid::linesGrob(
+                        c(dd$hand1$x, dd$hand2$x),
+                        (c(dd$hand1$y, dd$hand2$y) +
+                            c(dd$hand1$yend, dd$hand2$yend)) / 2L,
+                        gp = gpar(col = color[dd$hand1$link_panel])
+                    )
+                })
+                rlang::inject(grid::gList(!!!grobs))
+            },
+            # we link the first one to the first one
+            !!!lapply(seq_len(9), function(i) rlang::new_formula(i, i))
+        ),
         size = 0.5
     ) +
     theme(plot.margin = margin()) +
