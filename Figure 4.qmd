@@ -271,7 +271,7 @@ adjusted in each plot panel.
 #| code-fold: true
 #| output: false
 # Install 'ggstattest' package from GitHub if not available
-if (requireNamespace("ggstattest")) {
+if (!requireNamespace("ggstattest")) {
     pak::pak("Yunuuuu/ggstattest")
 }
 ```
