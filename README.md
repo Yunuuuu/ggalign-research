@@ -8,6 +8,22 @@ reproducibility.
 
 All output files can be found in the `output/` directory. 
 
+## Installation
+
+The figures in this repository were generated using the development version of
+[ggalign](https://github.com/Yunuuuu/ggalign). You can install it from GitHub as
+follows:
+
+``` r
+# install.packages("remotes")
+remotes::install_github("Yunuuuu/ggalign")
+```
+
+A CRAN release will follow once the next version of `ggplot2` is available
+(see <https://github.com/tidyverse/ggplot2/issues/6565> for the progress).
+
+
+## Note
 The repository structure is illustrated in the figure below:
 
 > ⚠️ ⚠️ ⚠️ ⚠️ The originally uploaded `Figure S2.pdf` was incorrect and cannot be
