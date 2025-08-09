@@ -15,8 +15,8 @@ The figures in this repository were generated using the development version of
 follows:
 
 ``` r
-# install.packages("remotes")
-remotes::install_github("Yunuuuu/ggalign")
+# install.packages("pak")
+pak::pak("Yunuuuu/ggalign")
 ```
 
 A CRAN release will follow once the next version of `ggplot2` `4.0.0` is available
