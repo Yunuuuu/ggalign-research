@@ -20,7 +20,7 @@ remotes::install_github("Yunuuuu/ggalign")
 ```
 
 A CRAN release will follow once the next version of `ggplot2` `4.0.0` is available
-(see <https://github.com/tidyverse/ggplot2/issues/6565> for the progress).
+(see <https://github.com/Yunuuuu/ggalign/issues/69> for the progress).
 
 
 ## Note
