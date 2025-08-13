@@ -151,7 +151,7 @@ BGCsda$Count <- log2(BGCsda$Count + 1)
 ```
 
 ```{r}
-circle <- circle_discrete(trda,
+circle <- circle_discrete(
     radial = coord_radial(
         rotate.angle = TRUE, expand = FALSE,
         start = pi / 2 + pi / 30, end = pi * 2 + pi / 2,
@@ -169,13 +169,13 @@ circle <- circle_discrete(trda,
     )
 ) +
     # inner links ------------------------------------
-    ggalign(rownames, size = 2) + # we use rownames to match the data
+    ggalign(trda$tip.label, size = 2) +
     scheme_data(function(data) {
         # for data, value is the rownames, we match it with linktab
         dplyr::mutate(
             linktab,
-            x = data$.x[match(Inhibitor, data$.names)],
-            xend = data$.x[match(Sensitive, data$.names)]
+            x = data$.x[match(Inhibitor, data$value)],
+            xend = data$.x[match(Sensitive, data$value)]
         )
     }) +
     # Currently, we use `curvelink` from ggtree, but we'll provide a native
@@ -194,10 +194,10 @@ circle <- circle_discrete(trda,
     no_expansion("y") +
 
     # add a point shape for each tip -------------------
-    ggalign(size = 0.1) +
+    ggalign(trda$tip.label, size = 0.1) +
     geom_point(aes(.x, 1, shape = Taxa, color = Taxa),
         data = function(data) {
-            dplyr::inner_join(data, tippoint, by = c(.names = "Isolation"))
+            dplyr::inner_join(data, tippoint, by = c(value = "Isolation"))
         }
     ) +
     scale_shape_manual(
@@ -220,12 +220,12 @@ circle <- circle_discrete(trda,
         tree_type = "cladogram", size = 0.5,
         ladderize = "left"
     ) +
-    scale_y_continuous(breaks = NULL) +
+    scale_y_reverse(breaks = NULL) +
     theme(panel.spacing.r = unit(0, "mm")) +
     no_expansion("y") +
 
     # draw the bar plot ---------------------------------
-    ggalign(rownames) + # we use rownames to match the data
+    ggalign(trda$tip.label) +
     scheme_data(function(data) {
         # for data, value is the rownames, we match it with weighttab
         dplyr::inner_join(data,
