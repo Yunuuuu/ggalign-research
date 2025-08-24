@@ -29,18 +29,6 @@ remotes::install_github("Yunuuuu/ggalign")
 A CRAN release will follow once the next version of `ggplot2` `4.0.0` is available
 (see <https://github.com/Yunuuuu/ggalign/issues/69> for the progress).
 
-
-## Note
-The repository structure is illustrated in the figure below:
-
-> ⚠️ ⚠️ ⚠️ ⚠️ The originally uploaded `Figure S2.pdf` was incorrect and cannot be
-> replaced during peer review.
-> Below we display the **correct version** of `Figure S2` for reviewer reference.  
-> This updated figure accurately reflects the results described in the
-> manuscript and will be uploaded to the official record when possible.
-
-![Figure S2](output/FigureS2.png)
-
 ## Script Structure
 All scripts have been organized and renamed to match their corresponding figure
 numbers in the manuscript. Each `.qmd` file contains the full analysis pipeline
