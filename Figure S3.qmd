@@ -5,6 +5,6 @@
 stack_alignh(data) +                    # initialize a layout
     align_hclust() +                    # reorder the data based on hierarchical clustering
     ggalign() +                         # initialize a plot
-    geom_bar() +                        # add ggplot2 scale
+    geom_bar() +                        # add ggplot2 layer
     scale_fill_brewer(palette = "Set3") # add ggplot2 scale
 ```
